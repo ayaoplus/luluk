@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2650"
-   wasCreatedForAppExtension = "YES"
-   version = "1.3">
+   version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
@@ -15,24 +14,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "49542972216C34950058F680"
-               BuildableName = "OpenInIINA.appex"
-               BlueprintName = "OpenInIINA"
-               ReferencedContainer = "container:iina.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
                BlueprintIdentifier = "84EB1ED51D2F51D3004FA5A1"
                BuildableName = "luluk.app"
-               BlueprintName = "iina"
-               ReferencedContainer = "container:iina.xcodeproj">
+               BlueprintName = "luluk"
+               ReferencedContainer = "container:luluk.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -41,23 +26,13 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES">
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "49542972216C34950058F680"
-            BuildableName = "OpenInIINA.appex"
-            BlueprintName = "OpenInIINA"
-            ReferencedContainer = "container:iina.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
-      <Testables>
-      </Testables>
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      shouldAutocreateTestPlan = "YES">
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
-      selectedDebuggerIdentifier = ""
-      selectedLauncherIdentifier = "Xcode.IDEFoundation.Launcher.PosixSpawn"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
@@ -70,8 +45,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "84EB1ED51D2F51D3004FA5A1"
             BuildableName = "luluk.app"
-            BlueprintName = "iina"
-            ReferencedContainer = "container:iina.xcodeproj">
+            BlueprintName = "luluk"
+            ReferencedContainer = "container:luluk.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -80,17 +55,15 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
-      debugDocumentVersioning = "YES"
-      askForAppToLaunch = "Yes"
-      launchAutomaticallySubstyle = "2">
+      debugDocumentVersioning = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "84EB1ED51D2F51D3004FA5A1"
             BuildableName = "luluk.app"
-            BlueprintName = "iina"
-            ReferencedContainer = "container:iina.xcodeproj">
+            BlueprintName = "luluk"
+            ReferencedContainer = "container:luluk.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -167,7 +167,7 @@
 		5125117D2E89B2ED00CDAE9F /* Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5125117C2E89B2ED00CDAE9F /* Display.swift */; };
 		512B8FDD2BC2376E00AF41BF /* OutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 512B8FDC2BC2376E00AF41BF /* OutlineView.swift */; };
 		513A4FFA29B53F8100A8EA7D /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 513A4FF929B53F8100A8EA7D /* Atomic.swift */; };
-		515B5E5A2A579903001FCD49 /* iina-plugin in Copy Executables */ = {isa = PBXBuildFile; fileRef = E38558872A484A2D0083772D /* iina-plugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		515B5E5A2A579903001FCD49 /* luluk-plugin in Copy Executables */ = {isa = PBXBuildFile; fileRef = E38558872A484A2D0083772D /* luluk-plugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		516B264D2EDA579700E3CB69 /* MemoryUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516B264C2EDA579600E3CB69 /* MemoryUsage.swift */; };
 		518376DD2C23DD2300574F00 /* libgcc_s.1.1.dylib in Copy Dylibs */ = {isa = PBXBuildFile; fileRef = 518376D92C23DB1400574F00 /* libgcc_s.1.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		518376DE2C23DD2300574F00 /* libstdc++.6.dylib in Copy Dylibs */ = {isa = PBXBuildFile; fileRef = 518376DB2C23DB2F00574F00 /* libstdc++.6.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -424,7 +424,7 @@
 		E3DBD23F218EF4F100B3AFBF /* AboutWindowContributorAvatarItem.xib in Resources */ = {isa = PBXBuildFile; fileRef = E3DBD23D218EF4F100B3AFBF /* AboutWindowContributorAvatarItem.xib */; };
 		E3DC53982A28F0DC002A5A48 /* JavascriptAPIInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3DC53972A28F0DC002A5A48 /* JavascriptAPIInput.swift */; };
 		E3DE8DCD1FD8166A0021921C /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3DE8DCC1FD8166A0021921C /* main.swift */; };
-		E3DE8DD31FD848BA0021921C /* iina-cli in Copy Executables */ = {isa = PBXBuildFile; fileRef = E3DE8DCA1FD8166A0021921C /* iina-cli */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		E3DE8DD31FD848BA0021921C /* luluk-cli in Copy Executables */ = {isa = PBXBuildFile; fileRef = E3DE8DCA1FD8166A0021921C /* luluk-cli */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		E3EC8C412F92E6BA00FBB51E /* PluginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3EC8C402F92E69C00FBB51E /* PluginManager.swift */; };
 		E3EC8C432F94330400FBB51E /* Dialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3EC8C422F9432FD00FBB51E /* Dialog.swift */; };
 		E3EC8C462F9475C600FBB51E /* PluginStorePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3EC8C452F9475BC00FBB51E /* PluginStorePanel.swift */; };
@@ -453,14 +453,14 @@
 			containerPortal = 84EB1ECE1D2F51D3004FA5A1 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = E3DE8DC91FD8166A0021921C;
-			remoteInfo = "iina-cli";
+			remoteInfo = "luluk-cli";
 		};
 		5180D7782C17DB0D00CC9C1C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 84EB1ECE1D2F51D3004FA5A1 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = E38558862A484A2D0083772D;
-			remoteInfo = "iina-plugin";
+			remoteInfo = "luluk-plugin";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -482,8 +482,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 6;
 			files = (
-				E3DE8DD31FD848BA0021921C /* iina-cli in Copy Executables */,
-				515B5E5A2A579903001FCD49 /* iina-plugin in Copy Executables */,
+				E3DE8DD31FD848BA0021921C /* luluk-cli in Copy Executables */,
+				515B5E5A2A579903001FCD49 /* luluk-plugin in Copy Executables */,
 				8461BA681E4237C7008BB852 /* youtube-dl in Copy Executables */,
 			);
 			name = "Copy Executables";
@@ -1509,7 +1509,7 @@
 		849581EF1F02728700D3B359 /* InitialWindowController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InitialWindowController.swift; sourceTree = "<group>"; };
 		849581F41F03D55A00D3B359 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/InitialWindowController.xib; sourceTree = "<group>"; };
 		849581F71F03D55C00D3B359 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InitialWindowController.strings"; sourceTree = "<group>"; };
-		8497A4831D2FF573005F504F /* iina-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "iina-Bridging-Header.h"; sourceTree = "<group>"; };
+		8497A4831D2FF573005F504F /* luluk-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "luluk-Bridging-Header.h"; sourceTree = "<group>"; };
 		84996F911EC11CE6009A8A39 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/HistoryWindowController.xib; sourceTree = "<group>"; };
 		84996F941EC11CEC009A8A39 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/HistoryWindowController.strings"; sourceTree = "<group>"; };
 		84A09A0C1F2DF596000FF343 /* MiniPlayerWindowController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MiniPlayerWindowController.swift; sourceTree = "<group>"; };
@@ -1933,7 +1933,7 @@
 		E38372912443634500F57718 /* LanguageTokenField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageTokenField.swift; sourceTree = "<group>"; };
 		E3839C5624FFF201007D0AB4 /* PluginStandaloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginStandaloneWindow.swift; sourceTree = "<group>"; };
 		E3839C5824FFF817007D0AB4 /* JavascriptAPIStandaloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavascriptAPIStandaloneWindow.swift; sourceTree = "<group>"; };
-		E38558872A484A2D0083772D /* iina-plugin */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "iina-plugin"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E38558872A484A2D0083772D /* luluk-plugin */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "luluk-plugin"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E38558892A484A2D0083772D /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		E38B3211214FB9EA000F6D27 /* PrefPluginPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrefPluginPermissionView.swift; sourceTree = "<group>"; };
 		E38B3212214FB9EA000F6D27 /* PrefPluginPermissionView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = PrefPluginPermissionView.xib; sourceTree = "<group>"; };
@@ -1980,7 +1980,7 @@
 		E3DBD23C218EF4F100B3AFBF /* AboutWindowContributorAvatarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindowContributorAvatarItem.swift; sourceTree = "<group>"; };
 		E3DBD23D218EF4F100B3AFBF /* AboutWindowContributorAvatarItem.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = AboutWindowContributorAvatarItem.xib; sourceTree = "<group>"; };
 		E3DC53972A28F0DC002A5A48 /* JavascriptAPIInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavascriptAPIInput.swift; sourceTree = "<group>"; };
-		E3DE8DCA1FD8166A0021921C /* iina-cli */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "iina-cli"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E3DE8DCA1FD8166A0021921C /* luluk-cli */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "luluk-cli"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3DE8DCC1FD8166A0021921C /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		E3EC8C402F92E69C00FBB51E /* PluginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginManager.swift; sourceTree = "<group>"; };
 		E3EC8C422F9432FD00FBB51E /* Dialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dialog.swift; sourceTree = "<group>"; };
@@ -2314,7 +2314,7 @@
 				8461BA671E4237C2008BB852 /* youtube-dl */,
 			);
 			name = Executables;
-			path = iina;
+			path = luluk;
 			sourceTree = "<group>";
 		};
 		847557121F405F2B0006B0FF /* Menu */ = {
@@ -2474,7 +2474,7 @@
 			isa = PBXGroup;
 			children = (
 				84A886E21E24F2D3008755BB /* Sub */,
-				8497A4831D2FF573005F504F /* iina-Bridging-Header.h */,
+				8497A4831D2FF573005F504F /* luluk-Bridging-Header.h */,
 				E3EC8C4F2F95B09D00FBB51E /* ConstraintsSugar.swift */,
 				513A4FF929B53F8100A8EA7D /* Atomic.swift */,
 				51165FBF2E1D91940060B817 /* ReadWriteLock.swift */,
@@ -2699,16 +2699,16 @@
 				D1F68E742C6ABC22003D1208 /* movist-v2-default-input.conf */,
 			);
 			name = config;
-			path = iina/config;
+			path = luluk/config;
 			sourceTree = SOURCE_ROOT;
 		};
 		84EB1ECD1D2F51D3004FA5A1 = {
 			isa = PBXGroup;
 			children = (
 				496498872919E47900CD61A5 /* Configs */,
-				84EB1ED81D2F51D3004FA5A1 /* iina */,
-				E3DE8DCB1FD8166A0021921C /* iina-cli */,
-				E38558882A484A2D0083772D /* iina-plugin */,
+				84EB1ED81D2F51D3004FA5A1 /* luluk */,
+				E3DE8DCB1FD8166A0021921C /* luluk-cli */,
+				E38558882A484A2D0083772D /* luluk-plugin */,
 				49542976216C34950058F680 /* OpenInIINA */,
 				84EB1ED71D2F51D3004FA5A1 /* Products */,
 				8461BA641E42344D008BB852 /* Executables */,
@@ -2723,14 +2723,14 @@
 			isa = PBXGroup;
 			children = (
 				84EB1ED61D2F51D3004FA5A1 /* luluk.app */,
-				E3DE8DCA1FD8166A0021921C /* iina-cli */,
+				E3DE8DCA1FD8166A0021921C /* luluk-cli */,
 				49542973216C34950058F680 /* OpenInIINA.appex */,
-				E38558872A484A2D0083772D /* iina-plugin */,
+				E38558872A484A2D0083772D /* luluk-plugin */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		84EB1ED81D2F51D3004FA5A1 /* iina */ = {
+		84EB1ED81D2F51D3004FA5A1 /* luluk */ = {
 			isa = PBXGroup;
 			children = (
 				84FF846D1D2FF698001B318A /* deps */,
@@ -2747,7 +2747,7 @@
 				84A0BAA61D2FAF8400BC8DA1 /* Utils */,
 			);
 			indentWidth = 2;
-			path = iina;
+			path = luluk;
 			sourceTree = "<group>";
 			tabWidth = 2;
 			usesTabs = 0;
@@ -2867,12 +2867,12 @@
 			path = Pages;
 			sourceTree = "<group>";
 		};
-		E38558882A484A2D0083772D /* iina-plugin */ = {
+		E38558882A484A2D0083772D /* luluk-plugin */ = {
 			isa = PBXGroup;
 			children = (
 				E38558892A484A2D0083772D /* main.swift */,
 			);
-			path = "iina-plugin";
+			path = "luluk-plugin";
 			sourceTree = "<group>";
 		};
 		E3CAD4AD2146DB23000B373A /* Javascript */ = {
@@ -2896,12 +2896,12 @@
 			name = Javascript;
 			sourceTree = "<group>";
 		};
-		E3DE8DCB1FD8166A0021921C /* iina-cli */ = {
+		E3DE8DCB1FD8166A0021921C /* luluk-cli */ = {
 			isa = PBXGroup;
 			children = (
 				E3DE8DCC1FD8166A0021921C /* main.swift */,
 			);
-			path = "iina-cli";
+			path = "luluk-cli";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -2924,9 +2924,9 @@
 			productReference = 49542973216C34950058F680 /* OpenInIINA.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		84EB1ED51D2F51D3004FA5A1 /* iina */ = {
+		84EB1ED51D2F51D3004FA5A1 /* luluk */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 84EB1EF91D2F51D3004FA5A1 /* Build configuration list for PBXNativeTarget "iina" */;
+			buildConfigurationList = 84EB1EF91D2F51D3004FA5A1 /* Build configuration list for PBXNativeTarget "luluk" */;
 			buildPhases = (
 				84EB1ED21D2F51D3004FA5A1 /* Sources */,
 				84EB1ED31D2F51D3004FA5A1 /* Frameworks */,
@@ -2947,20 +2947,20 @@
 				5180D7792C17DB0D00CC9C1C /* PBXTargetDependency */,
 				49542985216C34950058F680 /* PBXTargetDependency */,
 			);
-			name = iina;
+			name = luluk;
 			packageProductDependencies = (
 				B4E446E725CB53920069F06E /* PromiseKit */,
 				B4E446F625CB54EF0069F06E /* Mustache */,
 				B4E4470025CE3F930069F06E /* Sparkle */,
 				8451E6D82604AEFC009A15D7 /* Just */,
 			);
-			productName = mpvx;
+			productName = luluk;
 			productReference = 84EB1ED61D2F51D3004FA5A1 /* luluk.app */;
 			productType = "com.apple.product-type.application";
 		};
-		E38558862A484A2D0083772D /* iina-plugin */ = {
+		E38558862A484A2D0083772D /* luluk-plugin */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E385588F2A484A2D0083772D /* Build configuration list for PBXNativeTarget "iina-plugin" */;
+			buildConfigurationList = E385588F2A484A2D0083772D /* Build configuration list for PBXNativeTarget "luluk-plugin" */;
 			buildPhases = (
 				E38558832A484A2D0083772D /* Sources */,
 				E38558842A484A2D0083772D /* Frameworks */,
@@ -2970,17 +2970,17 @@
 			);
 			dependencies = (
 			);
-			name = "iina-plugin";
+			name = "luluk-plugin";
 			packageProductDependencies = (
 				E38558902A486E060083772D /* Mustache */,
 			);
-			productName = "iina-plugin";
-			productReference = E38558872A484A2D0083772D /* iina-plugin */;
+			productName = "luluk-plugin";
+			productReference = E38558872A484A2D0083772D /* luluk-plugin */;
 			productType = "com.apple.product-type.tool";
 		};
-		E3DE8DC91FD8166A0021921C /* iina-cli */ = {
+		E3DE8DC91FD8166A0021921C /* luluk-cli */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E3DE8DD01FD8166A0021921C /* Build configuration list for PBXNativeTarget "iina-cli" */;
+			buildConfigurationList = E3DE8DD01FD8166A0021921C /* Build configuration list for PBXNativeTarget "luluk-cli" */;
 			buildPhases = (
 				E3DE8DC61FD8166A0021921C /* Sources */,
 				E3DE8DC71FD8166A0021921C /* Frameworks */,
@@ -2990,11 +2990,11 @@
 			);
 			dependencies = (
 			);
-			name = "iina-cli";
+			name = "luluk-cli";
 			packageProductDependencies = (
 			);
-			productName = "iina-cli";
-			productReference = E3DE8DCA1FD8166A0021921C /* iina-cli */;
+			productName = "luluk-cli";
+			productReference = E3DE8DCA1FD8166A0021921C /* luluk-cli */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -3030,7 +3030,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 84EB1ED11D2F51D3004FA5A1 /* Build configuration list for PBXProject "iina" */;
+			buildConfigurationList = 84EB1ED11D2F51D3004FA5A1 /* Build configuration list for PBXProject "luluk" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -3079,9 +3079,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				84EB1ED51D2F51D3004FA5A1 /* iina */,
-				E3DE8DC91FD8166A0021921C /* iina-cli */,
-				E38558862A484A2D0083772D /* iina-plugin */,
+				84EB1ED51D2F51D3004FA5A1 /* luluk */,
+				E3DE8DC91FD8166A0021921C /* luluk-cli */,
+				E38558862A484A2D0083772D /* luluk-plugin */,
 				49542972216C34950058F680 /* OpenInIINA */,
 			);
 		};
@@ -3168,7 +3168,7 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"$(SRCROOT)/iina/write_info_plist_header.sh",
+				"$(SRCROOT)/luluk/write_info_plist_header.sh",
 			);
 			inputPaths = (
 				"$(CONFIGURATION_BUILD_DIR)/$(EXECUTABLE_FOLDER_PATH)/$(EXECUTABLE_NAME)",
@@ -3182,7 +3182,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "iina/write_info_plist_header.sh\n";
+			shellScript = "luluk/write_info_plist_header.sh\n";
 		};
 		84B1CE561F98CAE300994D63 /* Copy Dylib Symlinks */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3475,12 +3475,12 @@
 		};
 		497747EE20D287C1004B243A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E3DE8DC91FD8166A0021921C /* iina-cli */;
+			target = E3DE8DC91FD8166A0021921C /* luluk-cli */;
 			targetProxy = 497747ED20D287C1004B243A /* PBXContainerItemProxy */;
 		};
 		5180D7792C17DB0D00CC9C1C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E38558862A484A2D0083772D /* iina-plugin */;
+			target = E38558862A484A2D0083772D /* luluk-plugin */;
 			targetProxy = 5180D7782C17DB0D00CC9C1C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -5259,7 +5259,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		84EB1ED11D2F51D3004FA5A1 /* Build configuration list for PBXProject "iina" */ = {
+		84EB1ED11D2F51D3004FA5A1 /* Build configuration list for PBXProject "luluk" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				84EB1EF71D2F51D3004FA5A1 /* Debug */,
@@ -5270,7 +5270,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		84EB1EF91D2F51D3004FA5A1 /* Build configuration list for PBXNativeTarget "iina" */ = {
+		84EB1EF91D2F51D3004FA5A1 /* Build configuration list for PBXNativeTarget "luluk" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				84EB1EFA1D2F51D3004FA5A1 /* Debug */,
@@ -5281,7 +5281,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		E385588F2A484A2D0083772D /* Build configuration list for PBXNativeTarget "iina-plugin" */ = {
+		E385588F2A484A2D0083772D /* Build configuration list for PBXNativeTarget "luluk-plugin" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E385588B2A484A2D0083772D /* Debug */,
@@ -5292,7 +5292,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		E3DE8DD01FD8166A0021921C /* Build configuration list for PBXNativeTarget "iina-cli" */ = {
+		E3DE8DD01FD8166A0021921C /* Build configuration list for PBXNativeTarget "luluk-cli" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E3DE8DCE1FD8166A0021921C /* Debug */,
