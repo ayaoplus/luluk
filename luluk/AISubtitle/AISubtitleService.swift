@@ -39,10 +39,16 @@ actor AISubtitleService: ProgressReporter {
     /// 全局 whisper 进程槽池（多视频共享上限 5）。
     private let pool: WhisperProcessPool
 
-    // MARK: - 段级并发 semaphore（service 本地，上限 3）
+    // MARK: - 段级并发 semaphore（service 本地）
 
-    /// SPEC §5.3 锁定：单视频内段级并发 = 3。
-    private let maxConcurrentSegments = 3
+    /// 单视频内段级并发上限。
+    ///
+    /// SPEC §5.3 原本锁定 3，但实测 3 个并发 whisper-cli 同时跑 Metal GPU
+    /// 会跟 mpv 视频解码/渲染抢 GPU，导致音频 buffer underrun（破音）。
+    /// M3 实证后改回 1：后续段处理慢 ~3 倍，但首字幕延迟不变，用户已经
+    /// 在看片，后续段晚点出来不影响体验。
+    /// M5 优化方向：whisper-cli 加 `-ng` 跑 CPU，或动态根据用户暂停状态调度。
+    private let maxConcurrentSegments = 1
     private var inUseSlots = 0
     private var slotWaiters: [CheckedContinuation<Void, Never>] = []
 
