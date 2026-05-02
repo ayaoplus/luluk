@@ -93,16 +93,31 @@ cd /Users/erik/development/luluk
 
 ### 2.3 应用名 / Bundle Display Name
 
-**文件**：`iina/Info.plist`（搜索 `CFBundleName` / `CFBundleDisplayName`）
+**文件**：`iina/Info.plist`
 
-```diff
-  <key>CFBundleName</key>
-- <string>IINA</string>
-+ <string>luluk</string>
+⚠️ **IINA 的 Info.plist 里没有 `CFBundleName` / `CFBundleDisplayName` key**——应用名实际由 `Configs/iina.xcconfig:27` 的 `PRODUCT_NAME = IINA` 决定。这里采取最小侵入方案：在 Info.plist 里**新增**两个 key 显式覆盖，`PRODUCT_NAME` 保持 `IINA` 不动（`PRODUCT_NAME` 还被 `CODE_SIGN_ENTITLEMENTS = $(TARGET_NAME)/$(PRODUCT_NAME).entitlements` 引用为 `iina/IINA.entitlements` 路径，改了会导致 build 找不到 entitlements 文件）。
+
+按 plist 字母序插入：
+
+- 在 `<dict>` 后、`<key>CFBundleDocumentTypes</key>` 前插入：
+  ```xml
   <key>CFBundleDisplayName</key>
-- <string>IINA</string>
-+ <string>luluk</string>
-```
+  <string>luluk</string>
+  ```
+- 在 `<key>CFBundleIconFile</key>` 之后、`<key>CFBundleSignature</key>` 之前插入：
+  ```xml
+  <key>CFBundleName</key>
+  <string>luluk</string>
+  ```
+
+验证：`plutil -lint iina/Info.plist` 应输出 `OK`。
+
+> 发版前如果想让 binary 名字也改成 `luluk`（影响 .app 内 MacOS/luluk 二进制名 + 默认 prefs domain），需要同步：
+> - `Configs/iina.xcconfig:27`：`PRODUCT_NAME = IINA` → `PRODUCT_NAME = luluk`
+> - 重命名 `iina/IINA.entitlements` → `iina/luluk.entitlements`
+> - 在 .xcodeproj 里更新 IINA.entitlements 的引用
+>
+> 这是更深的改动，与 §2.3 解耦，留到上线前统一处理。
 
 ### 2.4 应用图标
 
