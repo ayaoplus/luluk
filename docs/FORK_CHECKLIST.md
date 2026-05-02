@@ -11,14 +11,25 @@
 - 第一次运行同意许可：`sudo xcodebuild -license`
 
 ### 1.2 下载 IINA 预编译依赖
-luluk 不需要重新编译 mpv，IINA 提供了预编译 dylib：
+
+luluk 不需要重新编译 mpv——IINA 在 `https://iina.io/dylibs/universal/` 上提供了预编译 dylib（mpv / FFmpeg / 其他）。脚本同时下载 yt-dlp + 三个 IINA 官方插件（plugin-online-media / plugin-userscript / plugin-opensub）。
+
+> ⚠️ 跑之前必须先修一处：`other/download_libs.sh:3` 的 `PROJECT_NAME='iina'` 必须改成 `PROJECT_NAME='luluk'`。脚本通过往上爬目录树找名字等于 `PROJECT_NAME` 的目录来定位项目根，luluk 根目录叫 `luluk` 不叫 `iina`，原值会让脚本一路爬到 `/` 然后报错 "Unable to find the root directory 'iina'" 立即退出。
 
 ```bash
-cd /Users/erik/development/luluk
 ./other/download_libs.sh
 ```
 
-下完会在 `deps/` 下出现 mpv、ffmpeg 等 dylib。
+输出到 `deps/`：
+- `deps/lib/`：mpv、ffmpeg、yt-dlp 等 dylib（~150MB）
+- `deps/executable/youtube-dl`：实际是 yt-dlp，IINA 兼容命名
+- `deps/plugins/iina-plugin-{ytdl,userscript,opensub}-*.iinaplgz`：三个官方插件
+
+总下载量约 150-200MB，视网速 1-3 分钟。
+
+> 长期风险：依赖 `iina.io` 的服务器分发预编译库——如果 IINA 项目以后下线或断开，luluk 必须自己 build mpv。这是 V2+ 才需要解决的问题，V1 接受这个外部依赖。
+>
+> luluk 跟 `plugin-opensub`（在线字幕搜索）功能上重叠，但 V1 先装上让 build 跑通；做 AI 字幕模块时再决定是否在 UI 隐藏。
 
 ### 1.3 注册 Apple Developer Program
 - 网址：https://developer.apple.com/programs/

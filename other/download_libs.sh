@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROJECT_NAME='iina'
+PROJECT_NAME='luluk'
 
 # universal | arm64 | x86_64
 ARCH="universal"
