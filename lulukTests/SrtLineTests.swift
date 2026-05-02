@@ -27,7 +27,7 @@ struct SrtLineTests {
 
     @Test func formatTimestampHourMinute() {
         // 1 小时 23 分 45.678 秒
-        #expect(SrtLine.formatTimestamp(3600 + 23 * 60 + 45.678) == "01:23:45,678")
+        #expect(SrtLine.formatTimestamp(5025.678) == "01:23:45,678")
     }
 
     @Test func formatTimestampNegativeClampsToZero() {
@@ -44,12 +44,12 @@ struct SrtLineTests {
     // MARK: - 时间戳解析
 
     @Test func parseTimestampStandard() {
-        #expect(SrtLine.parseTimestamp("01:23:45,678") == 3600 + 23 * 60 + 45.678)
+        #expect(SrtLine.parseTimestamp("01:23:45,678") == 5025.678)
     }
 
     @Test func parseTimestampDotMilliseconds() {
         // VLC 输出有时用 `.` 不用 `,`
-        #expect(SrtLine.parseTimestamp("01:23:45.678") == 3600 + 23 * 60 + 45.678)
+        #expect(SrtLine.parseTimestamp("01:23:45.678") == 5025.678)
     }
 
     @Test func parseTimestampZero() {
