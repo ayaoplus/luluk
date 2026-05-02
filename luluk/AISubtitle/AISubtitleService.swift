@@ -128,8 +128,11 @@ actor AISubtitleService: ProgressReporter {
         sourceLanguage: Language?,
         targetLanguage: Language
     ) async {
+        print("[luluk-ai] runPipeline start: \(videoURL.path)")
+
         // 早期校验：本地文件
         guard videoURL.isFileURL else {
+            print("[luluk-ai] FAIL: not a file URL (\(videoURL.absoluteString))")
             updateState(.failed(.networkResourceNotSupported))
             return
         }
@@ -138,22 +141,28 @@ actor AISubtitleService: ProgressReporter {
         let paths: WhisperPaths
         do {
             paths = try await modelDownloader.ensureWhisperReady()
-        } catch ModelDownloadError.binaryMissing {
+            print("[luluk-ai] whisper ready: bin=\(paths.binary.path) model=\(paths.model.path) vad=\(paths.vadModel.path)")
+        } catch ModelDownloadError.binaryMissing(let searched) {
+            print("[luluk-ai] FAIL whisper binary missing, searched: \(searched.joined(separator: ", "))")
             updateState(.failed(.whisperBinaryMissing))
             return
         } catch let ModelDownloadError.modelMissing(p, _) {
+            print("[luluk-ai] FAIL whisper model missing: \(p)")
             updateState(.failed(.modelMissing(expectedPath: p)))
             return
         } catch let ModelDownloadError.vadModelMissing(p) {
+            print("[luluk-ai] FAIL VAD model missing: \(p)")
             updateState(.failed(.modelMissing(expectedPath: p)))
             return
         } catch {
+            print("[luluk-ai] FAIL ensureWhisperReady: \(error)")
             updateState(.failed(.modelMissing(expectedPath: error.localizedDescription)))
             return
         }
 
         // 2. provider 就绪
         let providerReady = await provider.isReady
+        print("[luluk-ai] provider \(provider.displayName) isReady=\(providerReady)")
         guard providerReady else {
             updateState(.failed(.providerNotConfigured(providerName: provider.displayName)))
             return
@@ -164,6 +173,7 @@ actor AISubtitleService: ProgressReporter {
         do {
             session = try makeSessionDirectory(for: videoURL)
         } catch {
+            print("[luluk-ai] FAIL makeSessionDirectory: \(error)")
             updateState(.failed(.outputDirectoryNotWritable(path: error.localizedDescription)))
             return
         }
@@ -175,17 +185,21 @@ actor AISubtitleService: ProgressReporter {
             .appendingPathExtension("zh.srt")
 
         // 提前校验同目录可写
-        guard FileManager.default.isWritableFile(atPath: videoURL.deletingLastPathComponent().path) else {
+        let videoDir = videoURL.deletingLastPathComponent().path
+        guard FileManager.default.isWritableFile(atPath: videoDir) else {
+            print("[luluk-ai] FAIL output dir not writable: \(videoDir)")
             updateState(.failed(.outputDirectoryNotWritable(path: outputURL.deletingLastPathComponent().path)))
             cleanupSession()
             return
         }
+        print("[luluk-ai] session=\(session.path) output=\(outputURL.path)")
 
         // 4. 组件实例化
         let splitter: AudioSplitter
         do {
             splitter = try AudioSplitter()
         } catch {
+            print("[luluk-ai] FAIL ffmpeg/ffprobe missing: \(error)")
             updateState(.failed(.ffmpegBinaryMissing))
             cleanupSession()
             return
@@ -193,6 +207,7 @@ actor AISubtitleService: ProgressReporter {
         let runner = WhisperRunner(paths: paths)
         let merger = SRTMerger(outputURL: outputURL)
 
+        print("[luluk-ai] splitter ready, starting pipeline")
         updateState(.splitting)
 
         // 5. 跑流水线
@@ -201,6 +216,7 @@ actor AISubtitleService: ProgressReporter {
             try await withThrowingTaskGroup(of: Void.self) { group in
                 for try await segment in stream {
                     try Task.checkCancellation()
+                    print("[luluk-ai] segment #\(segment.index) yielded duration=\(String(format: "%.1f", segment.duration))s offset=\(String(format: "%.1f", segment.originalStartTime))s")
                     // 拿 service-local 槽（≤3）
                     await acquireSlot()
                     incrementTotalSegments()
@@ -213,26 +229,37 @@ actor AISubtitleService: ProgressReporter {
                             // 在 nonisolated 子任务里走 Task 包一层。
                             Task { await self?.releaseSlot() }
                         }
-                        try await self?.processSegment(
-                            segment: segment,
-                            runner: runner,
-                            merger: merger,
-                            source: sourceLanguage,
-                            target: targetLanguage
-                        )
+                        do {
+                            try await self?.processSegment(
+                                segment: segment,
+                                runner: runner,
+                                merger: merger,
+                                source: sourceLanguage,
+                                target: targetLanguage
+                            )
+                            print("[luluk-ai] segment #\(segment.index) DONE")
+                        } catch {
+                            print("[luluk-ai] segment #\(segment.index) FAIL: \(error)")
+                            throw error
+                        }
                     }
                 }
                 try await group.waitForAll()
             }
             try await merger.finalize()
+            print("[luluk-ai] pipeline COMPLETED, output written")
             updateState(.completed)
         } catch is CancellationError {
+            print("[luluk-ai] pipeline CANCELLED")
             updateState(.cancelled)
         } catch let e as SubtitleError {
+            print("[luluk-ai] pipeline FAILED with SubtitleError: \(e.shortDescription)")
             updateState(.failed(e))
         } catch let e as AudioSplitterError {
+            print("[luluk-ai] pipeline FAILED with AudioSplitterError: \(e)")
             updateState(.failed(.videoFileUnreadable(reason: String(describing: e))))
         } catch {
+            print("[luluk-ai] pipeline FAILED with unknown error: \(error)")
             updateState(.failed(.videoFileUnreadable(reason: error.localizedDescription)))
         }
 
