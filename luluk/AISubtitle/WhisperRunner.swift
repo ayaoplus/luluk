@@ -1,0 +1,203 @@
+//
+//  WhisperRunner.swift
+//  luluk
+//
+//  Created by ayao on 2026/5/2.
+//  Copyright © 2026 ayao. All rights reserved.
+//
+//  spawn whisper-cli + 解析 JSON 输出 → TranscriptionResult。
+//  对应 docs/AI_SUBTITLE_DESIGN.md §2.3 + SPEC §5.3。
+//
+//  whisper-cli 命令行（V1 锁定）：
+//    whisper-cli -m <model> --vad -vm <silero.bin> \
+//                -l <lang|auto> -oj -of <prefix> --no-prints <input.wav>
+//
+//  输出文件：<prefix>.json，结构由 whisper.cpp `-oj` 决定（见 transcription[] / offsets）。
+//
+
+import Foundation
+
+enum WhisperRunnerError: Error, Equatable {
+    /// whisper-cli 非 0 退出。
+    case processFailed(exitCode: Int32, stderr: String)
+
+    /// 找不到预期的 JSON 输出文件。
+    case outputMissing(path: String)
+
+    /// JSON 解析失败（whisper-cli 升级改格式时会触发）。
+    case invalidJSON(String)
+}
+
+/// WhisperRunner：单段转写。无并发上限——并发由上层 ``WhisperProcessPool`` 控制。
+actor WhisperRunner {
+
+    let binaryURL: URL
+    let modelURL: URL
+    let vadModelURL: URL
+    let useVAD: Bool
+    let threads: Int
+
+    init(
+        binaryURL: URL,
+        modelURL: URL,
+        vadModelURL: URL,
+        useVAD: Bool = true,
+        threads: Int = 4
+    ) {
+        self.binaryURL = binaryURL
+        self.modelURL = modelURL
+        self.vadModelURL = vadModelURL
+        self.useVAD = useVAD
+        self.threads = threads
+    }
+
+    /// 便捷构造：直接吃 ``WhisperPaths``（ModelDownloader 输出）。
+    init(paths: WhisperPaths, useVAD: Bool = true, threads: Int = 4) {
+        self.init(
+            binaryURL: paths.binary,
+            modelURL: paths.model,
+            vadModelURL: paths.vadModel,
+            useVAD: useVAD,
+            threads: threads
+        )
+    }
+
+    // MARK: - 公开 API
+
+    /// 转写一段音频。
+    /// - Parameters:
+    ///   - audio: 16kHz mono WAV 段（AudioSplitter 产物）。
+    ///   - language: nil → whisper 自动检测（不推荐，SPEC §7.6 已知误判）。
+    /// - Returns: TranscriptionResult；时间戳已加上 audio.originalStartTime 偏移。
+    func transcribe(
+        audio: AudioSegment,
+        language: Language?
+    ) async throws -> TranscriptionResult {
+        try Task.checkCancellation()
+
+        // whisper-cli `-of <prefix>` → 输出写到 <prefix>.json
+        let prefix = audio.wavURL.deletingPathExtension()
+        let jsonURL = prefix.appendingPathExtension("json")
+        // 上次跑剩的 json 先删，避免读到陈旧数据
+        try? FileManager.default.removeItem(at: jsonURL)
+
+        let args = buildArguments(audio: audio, language: language, outputPrefix: prefix)
+        try runWhisperCLI(arguments: args)
+
+        guard FileManager.default.fileExists(atPath: jsonURL.path) else {
+            throw WhisperRunnerError.outputMissing(path: jsonURL.path)
+        }
+        let data = try Data(contentsOf: jsonURL)
+        return try Self.parseTranscription(
+            jsonData: data,
+            audio: audio,
+            requestedLanguage: language
+        )
+    }
+
+    /// 把 whisper-cli `-oj` 的 JSON 解析成 ``TranscriptionResult``。
+    /// internal static 是为了让单元测试能直接喂 fixture JSON 进来，不依赖真实 spawn。
+    static func parseTranscription(
+        jsonData: Data,
+        audio: AudioSegment,
+        requestedLanguage: Language?
+    ) throws -> TranscriptionResult {
+        let raw = try parseJSON(jsonData)
+        let lines = raw.transcription.enumerated().compactMap { (i, seg) -> SrtLine? in
+            let text = seg.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { return nil }
+            let start = TimeInterval(seg.offsets.from) / 1000.0 + audio.originalStartTime
+            let end = TimeInterval(seg.offsets.to) / 1000.0 + audio.originalStartTime
+            // i+1 只是占位序号，最终编号由 SRTMerger 重排
+            return SrtLine(index: i + 1, startTime: start, endTime: end, text: text)
+        }
+        // result.language 是 whisper 自检/回写的 ISO 码（"en" / "ja" / ...）
+        let detectedLang = raw.result.language.flatMap { Language(rawValue: $0) } ?? requestedLanguage
+        return TranscriptionResult(
+            segmentIndex: audio.index,
+            language: detectedLang,
+            lines: lines,
+            confidence: nil  // V1 不解析 token avg_logprob
+        )
+    }
+
+    // MARK: - 命令行 + 进程
+
+    /// 构造 whisper-cli 命令行参数列表（pure，方便单测断言）。
+    func buildArguments(
+        audio: AudioSegment,
+        language: Language?,
+        outputPrefix: URL
+    ) -> [String] {
+        var args: [String] = [
+            "-m", modelURL.path,
+            "-l", language?.whisperCode ?? "auto",
+            "-oj",
+            "-of", outputPrefix.path,
+            "--no-prints",
+            "-t", String(threads)
+        ]
+        if useVAD {
+            args.append(contentsOf: ["--vad", "-vm", vadModelURL.path])
+        }
+        args.append(audio.wavURL.path)
+        return args
+    }
+
+    private func runWhisperCLI(arguments: [String]) throws {
+        let process = Process()
+        process.executableURL = binaryURL
+        process.arguments = arguments
+
+        let stderrPipe = Pipe()
+        // stdout 也接管，避免被 GUI 父进程的 stdout 缓冲卡住
+        let stdoutPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        try process.run()
+        // 大块输出可能导致 pipe 满阻塞——whisper-cli `--no-prints` 已把输出降到很少，
+        // 但 stderr 仍有 ggml 加载日志。先读完再 wait 是安全的。
+        let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        _ = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 {
+            let stderr = String(data: errData, encoding: .utf8) ?? ""
+            throw WhisperRunnerError.processFailed(
+                exitCode: process.terminationStatus,
+                stderr: stderr
+            )
+        }
+    }
+
+    // MARK: - JSON 解析
+
+    /// whisper.cpp `-oj` 输出的 JSON schema（最小子集，只取我们用得到的字段）。
+    struct WhisperJSON: Decodable {
+        let result: ResultBlock
+        let transcription: [Segment]
+
+        struct ResultBlock: Decodable {
+            let language: String?
+        }
+        struct Segment: Decodable {
+            let offsets: Offsets
+            let text: String
+        }
+        struct Offsets: Decodable {
+            /// 段起始时间，毫秒
+            let from: Int
+            /// 段结束时间，毫秒
+            let to: Int
+        }
+    }
+
+    static func parseJSON(_ data: Data) throws -> WhisperJSON {
+        do {
+            return try JSONDecoder().decode(WhisperJSON.self, from: data)
+        } catch {
+            throw WhisperRunnerError.invalidJSON(String(describing: error))
+        }
+    }
+}

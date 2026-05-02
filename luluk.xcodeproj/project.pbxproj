@@ -11,6 +11,12 @@
 		03E05B812FA64860001DBEF4 /* Language.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B7B2FA64860001DBEF4 /* Language.swift */; };
 		03E05B822FA64860001DBEF4 /* Sanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B7C2FA64860001DBEF4 /* Sanitizer.swift */; };
 		03E05B832FA64860001DBEF4 /* SRTMerger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B7E2FA64860001DBEF4 /* SRTMerger.swift */; };
+		03E05B902FA64860001DBEF4 /* AudioSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B962FA64860001DBEF4 /* AudioSegment.swift */; };
+		03E05B912FA64860001DBEF4 /* AudioSplitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B972FA64860001DBEF4 /* AudioSplitter.swift */; };
+		03E05B922FA64860001DBEF4 /* ModelDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B982FA64860001DBEF4 /* ModelDownloader.swift */; };
+		03E05B932FA64860001DBEF4 /* TranscriptionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B992FA64860001DBEF4 /* TranscriptionResult.swift */; };
+		03E05B942FA64860001DBEF4 /* WhisperProcessPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B9A2FA64860001DBEF4 /* WhisperProcessPool.swift */; };
+		03E05B952FA64860001DBEF4 /* WhisperRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B9B2FA64860001DBEF4 /* WhisperRunner.swift */; };
 		1326717E20852D0D000FA7E2 /* SubChooseViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 1326718020852D0D000FA7E2 /* SubChooseViewController.xib */; };
 		3412DB8E2C2FC64C00BBC142 /* Equalizations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3412DB8D2C2FC64800BBC142 /* Equalizations.swift */; };
 		348F71962DE2A819006C587D /* MPVCommandWrappers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348F71952DE2A814006C587D /* MPVCommandWrappers.swift */; };
@@ -632,6 +638,12 @@
 		03E05B7C2FA64860001DBEF4 /* Sanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sanitizer.swift; sourceTree = "<group>"; };
 		03E05B7D2FA64860001DBEF4 /* SrtLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SrtLine.swift; sourceTree = "<group>"; };
 		03E05B7E2FA64860001DBEF4 /* SRTMerger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRTMerger.swift; sourceTree = "<group>"; };
+		03E05B962FA64860001DBEF4 /* AudioSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSegment.swift; sourceTree = "<group>"; };
+		03E05B972FA64860001DBEF4 /* AudioSplitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSplitter.swift; sourceTree = "<group>"; };
+		03E05B982FA64860001DBEF4 /* ModelDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloader.swift; sourceTree = "<group>"; };
+		03E05B992FA64860001DBEF4 /* TranscriptionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionResult.swift; sourceTree = "<group>"; };
+		03E05B9A2FA64860001DBEF4 /* WhisperProcessPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperProcessPool.swift; sourceTree = "<group>"; };
+		03E05B9B2FA64860001DBEF4 /* WhisperRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperRunner.swift; sourceTree = "<group>"; };
 		0507C25E2B5617650043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainMenu.strings; sourceTree = "<group>"; };
 		0507C25F2B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainWindowController.strings; sourceTree = "<group>"; };
 		0507C2602B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/QuickSettingViewController.strings; sourceTree = "<group>"; };
@@ -2234,6 +2246,12 @@
 				03E05B7C2FA64860001DBEF4 /* Sanitizer.swift */,
 				03E05B7D2FA64860001DBEF4 /* SrtLine.swift */,
 				03E05B7E2FA64860001DBEF4 /* SRTMerger.swift */,
+				03E05B962FA64860001DBEF4 /* AudioSegment.swift */,
+				03E05B972FA64860001DBEF4 /* AudioSplitter.swift */,
+				03E05B982FA64860001DBEF4 /* ModelDownloader.swift */,
+				03E05B992FA64860001DBEF4 /* TranscriptionResult.swift */,
+				03E05B9A2FA64860001DBEF4 /* WhisperProcessPool.swift */,
+				03E05B9B2FA64860001DBEF4 /* WhisperRunner.swift */,
 			);
 			path = AISubtitle;
 			sourceTree = "<group>";
@@ -3460,6 +3478,12 @@
 				03E05B812FA64860001DBEF4 /* Language.swift in Sources */,
 				03E05B822FA64860001DBEF4 /* Sanitizer.swift in Sources */,
 				03E05B832FA64860001DBEF4 /* SRTMerger.swift in Sources */,
+				03E05B902FA64860001DBEF4 /* AudioSegment.swift in Sources */,
+				03E05B912FA64860001DBEF4 /* AudioSplitter.swift in Sources */,
+				03E05B922FA64860001DBEF4 /* ModelDownloader.swift in Sources */,
+				03E05B932FA64860001DBEF4 /* TranscriptionResult.swift in Sources */,
+				03E05B942FA64860001DBEF4 /* WhisperProcessPool.swift in Sources */,
+				03E05B952FA64860001DBEF4 /* WhisperRunner.swift in Sources */,
 				84AABE941DBFAF1A00D138FD /* FontPickerWindowController.swift in Sources */,
 				844C59E71F7C143D008D1B00 /* CacheManager.swift in Sources */,
 				E3EC8C502F95B0A700FBB51E /* ConstraintsSugar.swift in Sources */,
