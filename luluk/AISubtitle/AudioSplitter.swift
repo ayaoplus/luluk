@@ -106,15 +106,25 @@ actor AudioSplitter {
         continuation: AsyncThrowingStream<AudioSegment, Error>.Continuation
     ) async throws {
         try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+        NSLog("%@", "[luluk-ai/splitter] ffmpeg=\(ffmpegPath) ffprobe=\(ffprobePath)")
 
+        NSLog("%@", "[luluk-ai/splitter] probeDuration starting")
+        let t0 = Date()
         let duration = try probeDuration(videoURL: videoURL)
+        NSLog("%@", "[luluk-ai/splitter] probeDuration DONE: \(String(format: "%.1f", duration))s in \(String(format: "%.2f", Date().timeIntervalSince(t0)))s")
+
+        NSLog("%@", "[luluk-ai/splitter] detectSilences starting (this scans the whole file)")
+        let t1 = Date()
         let silences = try detectSilences(videoURL: videoURL)
+        NSLog("%@", "[luluk-ai/splitter] detectSilences DONE: \(silences.count) silences in \(String(format: "%.2f", Date().timeIntervalSince(t1)))s")
+
         let cutPoints = Self.computeCutPoints(
             duration: duration,
             silences: silences,
             target: targetSegmentDuration,
             tolerance: AudioSplitter.toleranceSeconds
         )
+        NSLog("%@", "[luluk-ai/splitter] computed \(cutPoints.count) cut points → \(cutPoints.count + 1) segments expected")
 
         // 切点把 [0, duration] 分成 N 段：[0, cut[0]], [cut[0], cut[1]], ..., [cut[last], duration]
         var prev: TimeInterval = 0
@@ -131,12 +141,15 @@ actor AudioSplitter {
                 continue
             }
             let wavURL = outputDir.appendingPathComponent(String(format: "seg_%05d.wav", index))
+            let tExt = Date()
+            NSLog("%@", "[luluk-ai/splitter] extract seg #\(index) [\(String(format: "%.1f", segStart))s, +\(String(format: "%.1f", segDuration))s]")
             try extractSegment(
                 videoURL: videoURL,
                 start: segStart,
                 duration: segDuration,
                 outputWAV: wavURL
             )
+            NSLog("%@", "[luluk-ai/splitter] extract seg #\(index) DONE in \(String(format: "%.2f", Date().timeIntervalSince(tExt)))s")
             let segment = AudioSegment(
                 index: index,
                 wavURL: wavURL,
