@@ -352,9 +352,9 @@ xcrun notarytool submit luluk.app.zip \
 ### 阶段 4：AI 字幕模块开发（🔄 M1-M3 完成，M4-M5 待启动）
 - [x] **M1**：Sanitizer + SRTMerger + SrtLine + Language + ~50 单元测试
 - [x] **M2**：AudioSplitter + WhisperRunner + WhisperProcessPool + ModelDownloader（83 单元测试通过；ensureWhisperReady 走应用支持目录 + PATH fallback；下载逻辑 stub 留 M5）
-- [x] **M3**：DeepSeekProvider + AISubtitleService + IINA hook（105 单元测试通过；PlayerCore.openMainWindow 末尾 hook + stop() cancel；Preference 9 个 AI key 含临时 aiSubtitleDeepSeekKey；M4 上 UI 前用 `defaults write xyz.luluk.app aiSubtitleDeepSeekKey "sk-..."` 设 key）
+- [x] **M3**：DeepSeekProvider + AISubtitleService + IINA hook + SubtitleFileWatcher（105 单元测试通过；PlayerCore.openMainWindow 末尾 hook + stop() cancel；Preference 9 个 AI key 含临时 aiSubtitleDeepSeekKey；M4 上 UI 前用 `defaults write xyz.luluk.app aiSubtitleDeepSeekKey "sk-..."` 设 key；watcher 用 mtime 轮询替 FSEventStream 简化实现）
 - [ ] **M4**：设置面板 UI + 进度面板 + Keychain
-- [ ] **M5**：FSEventStream + 全 provider + NLLB Python helper + ModelDownloader 真实下载逻辑
+- [ ] **M5**：全 provider + NLLB Python helper + ModelDownloader 真实下载逻辑（FSEventStream 优化可选）
 
 ### 阶段 5：发布（⏳ V1 上线前）
 - [ ] §5.1-§5.5 代码签名 / 公证 / Sparkle 密钥 / GitHub Release / 部署 luluk.xyz

@@ -59,6 +59,11 @@ actor AISubtitleService: ProgressReporter {
     private var startedAt: Date?
     private var firstSubtitleAt: Date?
 
+    /// SRT 文件监听器。SRTMerger 每段 flush 后通过它通知 PlayerCore reload。
+    /// 跟流水线同生命周期：runPipeline 启动，cleanup 时停。
+    /// 受 Preference.aiSubtitleAutoReload gate（默认 true）。
+    private var watcher: SubtitleFileWatcher?
+
     // MARK: - 进度
 
     private var progress: PipelineProgress
@@ -213,6 +218,16 @@ actor AISubtitleService: ProgressReporter {
         let runner = WhisperRunner(paths: paths)
         let merger = SRTMerger(outputURL: outputURL)
 
+        // 启动 SRT watcher：SRTMerger 每段 flush 后让 PlayerCore 自动 sub-add / sub-reload。
+        // 受 Preference.aiSubtitleAutoReload gate（默认 true）。
+        if Preference.bool(for: .aiSubtitleAutoReload) {
+            let w = SubtitleFileWatcher(player: player, url: outputURL)
+            self.watcher = w
+            await w.start()
+        } else {
+            NSLog("%@", "[luluk-ai] auto-reload disabled by preference, watcher skipped")
+        }
+
         NSLog("%@", "[luluk-ai] splitter ready, starting pipeline")
         updateState(.splitting)
 
@@ -267,6 +282,12 @@ actor AISubtitleService: ProgressReporter {
         } catch {
             NSLog("%@", "[luluk-ai] pipeline FAILED with unknown error: \(error)")
             updateState(.failed(.videoFileUnreadable(reason: error.localizedDescription)))
+        }
+
+        // 终态前停 watcher（不依赖 cleanupSession 调用顺序）
+        if let w = watcher {
+            await w.stop()
+            watcher = nil
         }
 
         cleanupSession()
