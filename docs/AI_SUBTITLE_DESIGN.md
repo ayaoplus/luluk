@@ -871,11 +871,23 @@ swift run luluk-ai-cli /path/to/test.mp4 ja
 - 副作用：多了一次 ffprobe 调用，但只 ~50ms，可忽略
 - 简化时序：AISubtitleService 启动 → AudioSplitter 直接探 → 不等 mpv
 
-### 7.5 NLLB Python helper IPC → 🔄 用户倾向 socket，下方是反建议
+### 7.5 NLLB Python helper IPC → ✅ stdin/stdout JSON-lines
 
-**用户表态**：倾向 Unix socket，但开放讨论。
+**最终决策**（用户 2026-05-02 接受反建议）。
 
-**我的反建议：用 stdin/stdout JSON-lines**，对比表：
+**协议格式**（M5 实现严格按此走）：
+
+- 每行一个 JSON object，UTF-8 编码，`\n` 分隔
+- 请求（luluk → helper）：`{"id": "<uuid>", "src": "ja", "tgt": "zh", "lines": ["...", "..."]}`
+- 成功响应：`{"id": "<uuid>", "translations": ["...", "..."]}`
+- 错误响应：`{"id": "<uuid>", "error": "<message>"}`
+- 生命周期：luluk 死 → helper stdin EOF → helper 自动退；helper 死 → luluk stdout EOF → 标记 NLLB 不可用 fallback 其他 provider 或重启
+- M5 实现要点：
+  - helper stderr（torch warnings）单独 pipe 到 log 文件，避免阻塞
+  - Python 端每行写完立即 `sys.stdout.flush()`
+  - luluk 端 30s timeout，超时重启 helper
+
+**反建议保留下来供回顾**：
 
 | 维度 | stdin/stdout JSON-lines | Unix socket |
 |------|------------------------|-------------|
