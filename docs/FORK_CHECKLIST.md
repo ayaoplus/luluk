@@ -62,7 +62,7 @@ cd /Users/erik/development/luluk
 
 ### 2.2 Sparkle 更新源
 
-**文件**：`iina/Info.plist` 行 639-643
+**文件**：`iina/Info.plist` 行 639-644
 
 ```diff
   <key>SUFeedURL</key>
@@ -72,14 +72,23 @@ cd /Users/erik/development/luluk
   <string>dsa_pub.pem</string>
   <key>SUPublicEDKey</key>
 - <string>UpwCRYfYOg0OGgQHY6RUdrV29yPcdkvxGlEfq46r6a0=</string>
-+ <string>暂时清空，未签名前用占位</string>
++ <string></string>
 ```
 
 > ⚠️ **没换 SUFeedURL 会被 IINA 的更新覆盖**，用户装的 luluk 会被替换回 IINA！必改。
+>
+> SUPublicEDKey 必须立即清空——保留 IINA 的旧 EDDSA 公钥意味着 luluk 会信任 IINA 团队签名的更新包，是严重的安全风险（极端情况下用户的 luluk 会被远程替换为 IINA）。改成空字符串后 Sparkle 在没有 SUPublicEDKey 时会跳过 EDDSA 校验，开发期可接受；发版前必须填回我们自己生成的 key。
 
-#### Sparkle 签名密钥（暂时跳过，发版前补）
-- 现在：删除 `iina/dsa_pub.pem` 用空文件占位（开发期不需要签名）
-- 发版前：用 Sparkle 工具生成新的 `dsa_pub.pem` 和对应的 EDDSA key
+#### Sparkle 签名密钥（开发期保持现状，发版前补）
+
+**`iina/dsa_pub.pem` 开发期不动**：
+- SUFeedURL 已经改成 luluk.xyz/appcast.xml（目前 404），Sparkle 永远拉不到 update，签名校验路径不会触发
+- 删空 pem 文件反而可能让 Sparkle 启动时尝试加载报错
+- DSA 算法 Sparkle 已弃用，发版时会改用 EDDSA，pem 文件最终会整体替换
+
+**发版前**：
+- 用 Sparkle 工具生成新的 EDDSA key 对，把公钥 base64 填回 `SUPublicEDKey`
+- DSA 已弃用，建议同时从 Info.plist 删掉 `SUPublicDSAKeyFile` key 并删掉 `iina/dsa_pub.pem` 文件
 - 工具：[Sparkle generate_keys](https://sparkle-project.org/documentation/#publishing-an-update)
 
 ### 2.3 应用名 / Bundle Display Name
