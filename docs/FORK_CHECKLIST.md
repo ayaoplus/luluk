@@ -349,10 +349,10 @@ xcrun notarytool submit luluk.app.zip \
 - [x] `open luluk.xcodeproj` + ⌘+B + ⌘+R 跑通
 - [x] 验证清单全绿（图标 / 应用名 / About / Sparkle 不弹）
 
-### 阶段 4：AI 字幕模块开发（🔄 M1+M2 完成，M3-M5 待启动）
+### 阶段 4：AI 字幕模块开发（🔄 M1-M3 完成，M4-M5 待启动）
 - [x] **M1**：Sanitizer + SRTMerger + SrtLine + Language + ~50 单元测试
 - [x] **M2**：AudioSplitter + WhisperRunner + WhisperProcessPool + ModelDownloader（83 单元测试通过；ensureWhisperReady 走应用支持目录 + PATH fallback；下载逻辑 stub 留 M5）
-- [ ] **M3**：DeepSeekProvider + AISubtitleService + IINA hook
+- [x] **M3**：DeepSeekProvider + AISubtitleService + IINA hook（105 单元测试通过；PlayerCore.openMainWindow 末尾 hook + stop() cancel；Preference 9 个 AI key 含临时 aiSubtitleDeepSeekKey；M4 上 UI 前用 `defaults write xyz.luluk.app aiSubtitleDeepSeekKey "sk-..."` 设 key）
 - [ ] **M4**：设置面板 UI + 进度面板 + Keychain
 - [ ] **M5**：FSEventStream + 全 provider + NLLB Python helper + ModelDownloader 真实下载逻辑
 

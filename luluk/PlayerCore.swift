@@ -224,6 +224,16 @@ class PlayerCore: NSObject {
 
   lazy var info: PlaybackInfo = PlaybackInfo(self)
 
+  /// luluk: AI 字幕服务（每个 PlayerCore 1 个，跟 info 同款 1:1 模式）。
+  /// 第一次访问时从 Preference 读 provider + key 创建。M3 单 provider（DeepSeek）。
+  /// 后续 M5 起这里要支持 fallback 链 + 用户运行时切换 provider。
+  /// 详见 docs/AI_SUBTITLE_DESIGN.md §3.1。
+  lazy var aiSubtitleService: AISubtitleService = {
+    let key = Preference.string(for: .aiSubtitleDeepSeekKey) ?? ""
+    let provider = DeepSeekProvider(apiKey: key)
+    return AISubtitleService(player: self, provider: provider)
+  }()
+
   var syncUITimer: Timer?
 
   var displayOSD: Bool = true
@@ -544,6 +554,22 @@ class PlayerCore: NSObject {
        let loopMode = Preference.DefaultRepeatMode(rawValue: Preference.integer(for: .defaultRepeatMode))
        setLoopMode(loopMode == .file ? .file : .playlist)
      }
+
+    // ▼ luluk: AI 字幕 hook (M3 §3.1)
+    // 网络流跳过（ffmpeg 不能切片）。本地 .mp4/.mkv 等才进流水线。
+    // 默认开（Preference.aiSubtitleEnabled 默认 true）。
+    if !isNetwork && Preference.bool(for: .aiSubtitleEnabled) {
+      let videoURL = url
+      Task.detached { [weak self] in
+        guard let self = self else { return }
+        let mode = Preference.string(for: .aiSubtitleSourceLanguageMode) ?? "auto"
+        let source: Language? = (mode == "manual")
+          ? Language(rawValue: Preference.string(for: .aiSubtitleManualSourceLanguage) ?? "")
+          : nil
+        await self.aiSubtitleService.start(videoURL: videoURL, sourceLanguage: source)
+      }
+    }
+    // ▲ luluk AI 字幕 hook 结束
   }
 
   static func loadKeyBindings() {
@@ -943,6 +969,11 @@ class PlayerCore: NSObject {
     // Do not send a stop command to mpv if it is already stopped.
     guard info.state != .idle else { return }
     mpv.command(.stop, level: .verbose)
+
+    // ▼ luluk: 视频切换/关闭 → 取消 AI 字幕流水线 (M3 §3.2)
+    // fire-and-forget，service 内 cancel 是 sync actor method。
+    Task { await aiSubtitleService.cancel() }
+    // ▲
   }
 
   func toggleMute(_ set: Bool? = nil) {

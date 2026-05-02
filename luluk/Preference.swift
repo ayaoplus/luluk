@@ -348,6 +348,24 @@ struct Preference {
 
     /// Workaround for AppKit defect where showWindow moves the window to a different screen (fixed as of macOS Tahoe).
     static let enableWrongScreenWorkaround = Key("enableWrongScreenWorkaround")
+
+    // ▼ luluk: AI 字幕（M3 起 - 详见 docs/AI_SUBTITLE_DESIGN.md §3.7）
+    static let aiSubtitleEnabled = Key("aiSubtitleEnabled")
+    /// "deepseek" / "minimax" / "openai" / "custom" / "lulukCloud" / "nllbLocal"
+    static let aiSubtitleProvider = Key("aiSubtitleProvider")
+    /// "auto" / "manual"
+    static let aiSubtitleSourceLanguageMode = Key("aiSubtitleSourceLanguageMode")
+    /// ISO 639-1: "en" / "ja" / "ko" / "ru" / "es"
+    static let aiSubtitleManualSourceLanguage = Key("aiSubtitleManualSourceLanguage")
+    static let aiSubtitleBilingual = Key("aiSubtitleBilingual")
+    static let aiSubtitleAutoReload = Key("aiSubtitleAutoReload")
+    /// WhisperModel.rawValue: "large-v3-turbo" / "large-v3" / "medium-turbo" / "tiny"
+    static let aiSubtitleWhisperModel = Key("aiSubtitleWhisperModel")
+    /// 累计 token（UI 显示成本估算）
+    static let aiSubtitleTokensUsed = Key("aiSubtitleTokensUsed")
+    /// M3 临时方案 - M4 改 Keychain。空串视为未配置。
+    static let aiSubtitleDeepSeekKey = Key("aiSubtitleDeepSeekKey")
+    // ▲ luluk AI 字幕结束
   }
 
   // MARK: - Enums
@@ -1141,7 +1159,19 @@ struct Preference {
     .enableHdrWorkaround: false,
     .enableNowPlayingArtwork: true,
     .enableDisplayIdle: true,
-    .enableWrongScreenWorkaround: true
+    .enableWrongScreenWorkaround: true,
+
+    // ▼ luluk: AI 字幕默认值（SPEC §11 决策："默认开"）
+    .aiSubtitleEnabled: true,
+    .aiSubtitleProvider: "deepseek",
+    .aiSubtitleSourceLanguageMode: "auto",
+    .aiSubtitleManualSourceLanguage: "ja",
+    .aiSubtitleBilingual: true,
+    .aiSubtitleAutoReload: true,
+    .aiSubtitleWhisperModel: "large-v3-turbo",
+    .aiSubtitleTokensUsed: 0,
+    .aiSubtitleDeepSeekKey: ""
+    // ▲
   ]
 
 

@@ -17,6 +17,11 @@
 		03E05B932FA64860001DBEF4 /* TranscriptionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B992FA64860001DBEF4 /* TranscriptionResult.swift */; };
 		03E05B942FA64860001DBEF4 /* WhisperProcessPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B9A2FA64860001DBEF4 /* WhisperProcessPool.swift */; };
 		03E05B952FA64860001DBEF4 /* WhisperRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B9B2FA64860001DBEF4 /* WhisperRunner.swift */; };
+		03E05BA02FA64860001DBEF4 /* AISubtitleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BA52FA64860001DBEF4 /* AISubtitleService.swift */; };
+		03E05BA12FA64860001DBEF4 /* PipelineProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BA62FA64860001DBEF4 /* PipelineProgress.swift */; };
+		03E05BA22FA64860001DBEF4 /* SubtitleError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BA72FA64860001DBEF4 /* SubtitleError.swift */; };
+		03E05BA32FA64860001DBEF4 /* TranslationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BA82FA64860001DBEF4 /* TranslationProvider.swift */; };
+		03E05BA42FA64860001DBEF4 /* DeepSeekProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BA92FA64860001DBEF4 /* DeepSeekProvider.swift */; };
 		1326717E20852D0D000FA7E2 /* SubChooseViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 1326718020852D0D000FA7E2 /* SubChooseViewController.xib */; };
 		3412DB8E2C2FC64C00BBC142 /* Equalizations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3412DB8D2C2FC64800BBC142 /* Equalizations.swift */; };
 		348F71962DE2A819006C587D /* MPVCommandWrappers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348F71952DE2A814006C587D /* MPVCommandWrappers.swift */; };
@@ -644,6 +649,11 @@
 		03E05B992FA64860001DBEF4 /* TranscriptionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionResult.swift; sourceTree = "<group>"; };
 		03E05B9A2FA64860001DBEF4 /* WhisperProcessPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperProcessPool.swift; sourceTree = "<group>"; };
 		03E05B9B2FA64860001DBEF4 /* WhisperRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperRunner.swift; sourceTree = "<group>"; };
+		03E05BA52FA64860001DBEF4 /* AISubtitleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISubtitleService.swift; sourceTree = "<group>"; };
+		03E05BA62FA64860001DBEF4 /* PipelineProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineProgress.swift; sourceTree = "<group>"; };
+		03E05BA72FA64860001DBEF4 /* SubtitleError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleError.swift; sourceTree = "<group>"; };
+		03E05BA82FA64860001DBEF4 /* TranslationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationProvider.swift; sourceTree = "<group>"; };
+		03E05BA92FA64860001DBEF4 /* DeepSeekProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekProvider.swift; sourceTree = "<group>"; };
 		0507C25E2B5617650043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainMenu.strings; sourceTree = "<group>"; };
 		0507C25F2B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainWindowController.strings; sourceTree = "<group>"; };
 		0507C2602B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/QuickSettingViewController.strings; sourceTree = "<group>"; };
@@ -2252,8 +2262,21 @@
 				03E05B992FA64860001DBEF4 /* TranscriptionResult.swift */,
 				03E05B9A2FA64860001DBEF4 /* WhisperProcessPool.swift */,
 				03E05B9B2FA64860001DBEF4 /* WhisperRunner.swift */,
+				03E05BA52FA64860001DBEF4 /* AISubtitleService.swift */,
+				03E05BA62FA64860001DBEF4 /* PipelineProgress.swift */,
+				03E05BA72FA64860001DBEF4 /* SubtitleError.swift */,
+				03E05BA82FA64860001DBEF4 /* TranslationProvider.swift */,
+				03E05BAA2FA64860001DBEF4 /* Providers */,
 			);
 			path = AISubtitle;
+			sourceTree = "<group>";
+		};
+		03E05BAA2FA64860001DBEF4 /* Providers */ = {
+			isa = PBXGroup;
+			children = (
+				03E05BA92FA64860001DBEF4 /* DeepSeekProvider.swift */,
+			);
+			path = Providers;
 			sourceTree = "<group>";
 		};
 		49542976216C34950058F680 /* OpenInIINA */ = {
@@ -3484,6 +3507,11 @@
 				03E05B932FA64860001DBEF4 /* TranscriptionResult.swift in Sources */,
 				03E05B942FA64860001DBEF4 /* WhisperProcessPool.swift in Sources */,
 				03E05B952FA64860001DBEF4 /* WhisperRunner.swift in Sources */,
+				03E05BA02FA64860001DBEF4 /* AISubtitleService.swift in Sources */,
+				03E05BA12FA64860001DBEF4 /* PipelineProgress.swift in Sources */,
+				03E05BA22FA64860001DBEF4 /* SubtitleError.swift in Sources */,
+				03E05BA32FA64860001DBEF4 /* TranslationProvider.swift in Sources */,
+				03E05BA42FA64860001DBEF4 /* DeepSeekProvider.swift in Sources */,
 				84AABE941DBFAF1A00D138FD /* FontPickerWindowController.swift in Sources */,
 				844C59E71F7C143D008D1B00 /* CacheManager.swift in Sources */,
 				E3EC8C502F95B0A700FBB51E /* ConstraintsSugar.swift in Sources */,
@@ -4934,9 +4962,6 @@
 		03E05B672FA643FB001DBEF4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/deps/include",
-				);
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ANALYZER_NONNULL = YES;
@@ -4989,6 +5014,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/deps/include";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.3;
 				MARKETING_VERSION = 1.0;
@@ -5012,9 +5038,6 @@
 		03E05B682FA643FB001DBEF4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/deps/include",
-				);
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ANALYZER_NONNULL = YES;
@@ -5061,6 +5084,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/deps/include";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.3;
 				MARKETING_VERSION = 1.0;
@@ -5082,9 +5106,6 @@
 		03E05B692FA643FB001DBEF4 /* Beta */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/deps/include",
-				);
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ANALYZER_NONNULL = YES;
@@ -5131,6 +5152,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/deps/include";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.3;
 				MARKETING_VERSION = 1.0;
@@ -5152,9 +5174,6 @@
 		03E05B6A2FA643FB001DBEF4 /* Nightly */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/deps/include",
-				);
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ANALYZER_NONNULL = YES;
@@ -5201,6 +5220,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/deps/include";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.3;
 				MARKETING_VERSION = 1.0;
