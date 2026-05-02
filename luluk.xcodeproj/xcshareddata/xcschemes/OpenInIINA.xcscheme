@@ -52,6 +52,17 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "03E05B602FA643FB001DBEF4"
+               BuildableName = "lulukTests.xctest"
+               BlueprintName = "lulukTests"
+               ReferencedContainer = "container:luluk.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

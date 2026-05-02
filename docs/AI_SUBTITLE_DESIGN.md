@@ -839,35 +839,59 @@ swift run luluk-ai-cli /path/to/test.mp4 ja
 
 ---
 
-## 7. 开放问题（写代码前需要回答）
+## 7. 开放问题（已锁定决策，2026-05-02 与用户对齐）
 
-下列问题在 M1 之前必须有答案，否则 M2/M3 会改架构：
+> 原本是 M1 启动前的 5 个 TBD 问题，用户在 M1 编码过程中给出答案。决策已锁定，下列条目作为后续模块实现时的依据。
 
-1. **whisper-cli 用哪个 distribution**？
-   - SPEC §5.3 说"首次启动应用内一键下载"，但**下载源 URL 没定**
-   - 候选：自建 CDN / GitHub Release（whisper.cpp 官方）/ Hugging Face
-   - 决策需要：哪里下载、是否需要校验签名、versioning 策略
-   
-2. **mpv 加载视频成功 vs ffmpeg 能切片**：是不是 1:1？
-   - 已知 mpv 能解的格式 ffmpeg 一般也能（mpv 内部就是 ffmpeg）
-   - 但 BD/DVD/m3u8 等特殊源 mpv 走自己的 demuxer，ffmpeg 可能不能直接处理
-   - V1 决策：M3 时只支持本地单文件视频（其他报"不支持 AI 字幕"）
-   
-3. **多 PlayerCore 共享 whisper-cli 进程数限制**：
-   - SPEC §5.3 决策"并发 3"是单视频内段级并发
-   - 用户同时开 3 个视频呢？9 个 whisper 进程？
-   - V1 决策：进程池全局上限 3（多视频共享），后续视频排队
-   
-4. **`info.videoDuration` 异步填充时机**：
-   - mpv 加载视频后多久能拿到时长？
-   - 如果在 AudioSplitter 启动后才填充，splitter 已经用 ffprobe 单独探了——浪费
-   - V1 决策：splitter 自己探（不依赖 mpv），简化时序
-   
-5. **NLLB Python helper 和 luluk 怎么 IPC**：
-   - candidate 1：stdin/stdout JSON-lines（最简单）
-   - candidate 2：unix socket（性能好，复杂）
-   - candidate 3：HTTP localhost（最容易 debug）
-   - V1 决策：M5 时再定，candidate 1 先 prototype
+### 7.1 whisper-cli + 模型下载源 → ✅ Hugging Face
+
+- **whisper-cli binary**：从 Hugging Face 的 [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) 仓库下载（whisper.cpp 官方维护者本人的 HF）
+- **模型文件**：同仓库的 `ggml-large-v3-turbo.bin` 等（Hugging Face 主托管渠道）
+- **优点**：单一可信源、CDN 全球加速、有 versioning（commit hash + tag）、HF 不会随便下线（业界基础设施）
+- **未决细节**（M5 实现 ModelDownloader 时再定）：
+  - 是否需要校验 SHA256（HF 自己提供 `.gitattributes` 的 LFS hash，可作为校验）
+  - 镜像策略：国内访问慢时是否提供备用源（如自建 CDN）
+
+### 7.2 BD/m3u8 等非常规源 → ✅ V1 不支持
+
+- AISubtitleService.start 在 `info.isNetworkResource == true` 或路径不是本地文件时**不启动**，UI 显示"此格式暂不支持 AI 字幕"
+- M3 hook PlayerCore.openMainWindow 时已经按这个约束实现（参考 §3.1）
+
+### 7.3 多视频同开 whisper 进程池上限 → ✅ 全局 5 个进程
+
+- 单视频内段级并发依然按 SPEC §5.3 = 3
+- 多视频共享一个**全局进程池**，上限 5（不是每视频 5）
+- 实现：在 `WhisperRunner` 之上加一层 `WhisperProcessPool: actor`，所有 `WhisperRunner` 实例从池里申请进程槽
+- 第 5 个进程占满后，新转写请求**排队**（不报错，UI 进度面板显示 "Queued"）
+
+### 7.4 AudioSplitter 时长来源 → ✅ 自己探（ffprobe）
+
+- 不依赖 `info.videoDuration`（mpv 异步填充，时序不可控）
+- AudioSplitter 启动时立刻 spawn `ffprobe -i <video> -show_format`，解析 duration
+- 副作用：多了一次 ffprobe 调用，但只 ~50ms，可忽略
+- 简化时序：AISubtitleService 启动 → AudioSplitter 直接探 → 不等 mpv
+
+### 7.5 NLLB Python helper IPC → 🔄 用户倾向 socket，下方是反建议
+
+**用户表态**：倾向 Unix socket，但开放讨论。
+
+**我的反建议：用 stdin/stdout JSON-lines**，对比表：
+
+| 维度 | stdin/stdout JSON-lines | Unix socket |
+|------|------------------------|-------------|
+| 启动复杂度 | `Process()` 一行，pipe 自动 attach | 选 socket 路径 + bind + accept |
+| 生命周期 | luluk 死 → helper 收到 EOF 自动退；helper 死 → pipe 断 | 需要显式 close + 删 socket file + PID 协调 |
+| 多客户端 | 不支持（这里也不需要：1 主 1 helper）| 支持（over-engineering for our case）|
+| 调试 | `echo '{...}' \| python helper.py` 直接试 | 需要起 helper + nc/socat 客户端 |
+| PyInstaller | stdin/stdout 是 entrypoint 默认 | 需要在 entry script 写 socket server |
+| 性能 | pipe 内核态零拷贝 | 同 pipe（macOS 上 Unix socket ≈ pipe）|
+| 单例性 | 自然单例（luluk 直接 spawn）| 需要 PID file 防双开 |
+
+**结论**：luluk 是 1 主 1 helper 单向调用，stdin/stdout 是 Unix 哲学最简方案；socket 解决的是"多客户端 + 跨进程发现"问题——我们没这俩需求。socket 在工程上是 over-engineering。
+
+如果用户坚持 socket，我也能实现，但会在 M5 commit message 里记录这个决策的 trade-off，便于将来回看。
+
+**待用户最终拍板**——M5 启动前必须定。
 
 ---
 
