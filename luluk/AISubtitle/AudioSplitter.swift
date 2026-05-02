@@ -51,16 +51,26 @@ actor AudioSplitter {
     private let ffmpegPath: String
     private let ffprobePath: String
 
+    /// 是否启用 silencedetect 全片扫描对齐切点。
+    /// **M3 默认 false**：1 小时视频 silencedetect 要 ~90s，跟 SPEC §5.2
+    /// 锁的"首字幕 11s"承诺冲突。直接硬切的代价是段边界偶尔切在话语中间，
+    /// whisper VAD 会处理 padding，中间可能丢 1 行字幕——可接受。
+    /// M5 优化方案：silencedetect 跑 background，第一段硬切先出，
+    /// 后续段等 silencedetect 完成再用精确切点。
+    let useSilenceDetection: Bool
+
     /// 默认构造器：自动定位 ffmpeg/ffprobe（应用目录优先 → PATH）。
-    init() throws {
+    init(useSilenceDetection: Bool = false) throws {
         self.ffmpegPath = try Self.locateBinary("ffmpeg")
         self.ffprobePath = try Self.locateBinary("ffprobe")
+        self.useSilenceDetection = useSilenceDetection
     }
 
     /// 测试 / 显式注入用的构造器。
-    init(ffmpegPath: String, ffprobePath: String) {
+    init(ffmpegPath: String, ffprobePath: String, useSilenceDetection: Bool = false) {
         self.ffmpegPath = ffmpegPath
         self.ffprobePath = ffprobePath
+        self.useSilenceDetection = useSilenceDetection
     }
 
     // MARK: - 公开 API
@@ -113,10 +123,17 @@ actor AudioSplitter {
         let duration = try probeDuration(videoURL: videoURL)
         NSLog("%@", "[luluk-ai/splitter] probeDuration DONE: \(String(format: "%.1f", duration))s in \(String(format: "%.2f", Date().timeIntervalSince(t0)))s")
 
-        NSLog("%@", "[luluk-ai/splitter] detectSilences starting (this scans the whole file)")
-        let t1 = Date()
-        let silences = try detectSilences(videoURL: videoURL)
-        NSLog("%@", "[luluk-ai/splitter] detectSilences DONE: \(silences.count) silences in \(String(format: "%.2f", Date().timeIntervalSince(t1)))s")
+        // M3 默认跳过 silencedetect（长视频扫全片要数分钟，跟首字幕 11s 承诺冲突）。
+        let silences: [(start: TimeInterval, end: TimeInterval)]
+        if useSilenceDetection {
+            NSLog("%@", "[luluk-ai/splitter] detectSilences starting (scans whole file)")
+            let t1 = Date()
+            silences = try detectSilences(videoURL: videoURL)
+            NSLog("%@", "[luluk-ai/splitter] detectSilences DONE: \(silences.count) silences in \(String(format: "%.2f", Date().timeIntervalSince(t1)))s")
+        } else {
+            NSLog("%@", "[luluk-ai/splitter] silencedetect skipped (hard-cut every \(Int(targetSegmentDuration))s)")
+            silences = []
+        }
 
         let cutPoints = Self.computeCutPoints(
             duration: duration,
