@@ -197,9 +197,26 @@ grep -rn "colliderli\|iina\.io" iina/ OpenInIINA/ --include="*.swift" --include=
 
 ### 2.7 About 窗口致谢保留 IINA
 
-**文件**：`iina/Credits.rtf` 和 `iina/Contribution.rtf`
+**两个 rtf 文件各自承担不同的 license 义务，都不能删。**
 
-GPL-3 要求保留原作者署名。**不要删 IINA 的 Credits**。在 luluk 自己的版权信息里加一句"基于 IINA 开发，遵循 GPL-3"。
+| 文件 | 实际内容 | 为什么不能删 |
+|------|---------|-------------|
+| `iina/Credits.rtf` | 依赖项 license 致谢（libmpv / FFmpeg / Just / PromiseKit / GRMustache 等），逐个粘贴了原始 license 文本 | 这些第三方库的 BSD / MIT / LGPL license 都要求保留版权声明和 license 文本，**和 IINA / luluk 无关、是依赖本身的法律要求** |
+| `iina/Contribution.rtf` | IINA 项目说明 + GPL-3 声明 + `Copyright © 2017-2026 Collider LI, et al.` | **GPL-3 §5(a) 要求衍生作品保留原作者版权声明**。luluk 是 IINA 的衍生作品，这个文件就是法律上必须保留的"原作者署名" |
+
+**验证**（不改文件，只确认）：
+
+```bash
+# Credits.rtf 应包含 mpv / FFmpeg 等依赖 license
+textutil -convert txt -stdout iina/Credits.rtf | grep -E "(libmpv|FFmpeg)"
+
+# Contribution.rtf 应包含 IINA 团队署名 + GPL 声明
+textutil -convert txt -stdout iina/Contribution.rtf | grep -E "(Collider LI|GNU General Public License)"
+```
+
+**luluk 自己的版权信息**：建议将来在 luluk 自己写的 About 页（不是改 IINA 这两个 rtf）或 README 里加一句「luluk 基于 IINA 二次开发，遵循 GPL-3.0 协议；原 IINA 项目版权属于 Collider LI 等贡献者」。这是补充性的，不是 GPL 强制；强制部分（保留 Contribution.rtf）已通过"不动这两个 rtf"满足。
+
+**不改 rtf 的原因**：RTF 是富文本格式，用编辑器（含 Edit/Write 工具）按字符改会破坏格式标记。如果将来需要修改这些文件，请用 macOS TextEdit 打开。
 
 ---
 
