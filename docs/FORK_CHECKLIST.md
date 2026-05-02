@@ -145,13 +145,13 @@ cp assets/AppIcon.iconset/*.png iina/Assets.xcassets/AppIcon.appiconset/
 
 ### 2.5 Crowdin 翻译配置
 
-V1 先不上多语言 UI，关掉 Crowdin：
+V1 先不上多语言 UI，关掉 Crowdin（用 `git mv` 而不是 `mv`，保留 rename history，将来想 revive 时一目了然）：
 
 ```bash
-mv /Users/erik/development/luluk/crowdin.yml /Users/erik/development/luluk/.archive_crowdin.yml
+git mv crowdin.yml .archive_crowdin.yml
 ```
 
-V1 上线后再开。
+V1 上线后再开。代码里 `iina/AppData.swift:56` 的 `crowdinMembersLink` 暂时不动，等 luluk 自己接上 Crowdin 后再统一更新。
 
 ### 2.6 移除/替换 Crash Report endpoint
 
