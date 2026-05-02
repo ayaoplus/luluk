@@ -147,7 +147,8 @@ actor ModelDownloader {
 
     // MARK: - 内部：定位 binary / model
 
-    /// 应用目录优先；找不到去 PATH 上找（开发期 fallback）。
+    /// 应用目录优先；找不到去 PATH 上找；最后兜底常见 brew 路径。
+    /// 三层 fallback 是因为 macOS GUI 应用启动时的 PATH 不含 /opt/homebrew/bin。
     private func locateBinary() throws -> URL {
         var searched: [String] = []
 
@@ -161,6 +162,15 @@ actor ModelDownloader {
             return URL(fileURLWithPath: pathBinary)
         }
         searched.append("$PATH")
+
+        // brew 常见路径兜底（GUI 启动 PATH 不含 /opt/homebrew/bin）
+        let fallbacks = ["/opt/homebrew/bin/whisper-cli", "/usr/local/bin/whisper-cli"]
+        for f in fallbacks {
+            searched.append(f)
+            if FileManager.default.isExecutableFile(atPath: f) {
+                return URL(fileURLWithPath: f)
+            }
+        }
 
         throw ModelDownloadError.binaryMissing(searchedPaths: searched)
     }
