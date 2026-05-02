@@ -559,19 +559,19 @@ class PlayerCore: NSObject {
     // 网络流跳过（ffmpeg 不能切片）。本地 .mp4/.mkv 等才进流水线。
     // 默认开（Preference.aiSubtitleEnabled 默认 true）。
     let aiEnabled = Preference.bool(for: .aiSubtitleEnabled)
-    print("[luluk-ai] openMainWindow hook: path=\(path) isNetwork=\(isNetwork) enabled=\(aiEnabled) isFileURL=\(url.isFileURL)")
+    NSLog("%@", "[luluk-ai] openMainWindow hook: path=\(path) isNetwork=\(isNetwork) enabled=\(aiEnabled) isFileURL=\(url.isFileURL)")
     if !isNetwork && aiEnabled {
       let videoURL = url
       Task.detached { [weak self] in
         guard let self = self else {
-          print("[luluk-ai] hook task: self released, abort")
+          NSLog("%@", "[luluk-ai] hook task: self released, abort")
           return
         }
         let mode = Preference.string(for: .aiSubtitleSourceLanguageMode) ?? "auto"
         let source: Language? = (mode == "manual")
           ? Language(rawValue: Preference.string(for: .aiSubtitleManualSourceLanguage) ?? "")
           : nil
-        print("[luluk-ai] hook: calling aiSubtitleService.start mode=\(mode) source=\(source?.rawValue ?? "nil")")
+        NSLog("%@", "[luluk-ai] hook: calling aiSubtitleService.start mode=\(mode) source=\(source?.rawValue ?? "nil")")
         await self.aiSubtitleService.start(videoURL: videoURL, sourceLanguage: source)
       }
     }
