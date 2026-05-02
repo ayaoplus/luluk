@@ -153,15 +153,47 @@ git mv crowdin.yml .archive_crowdin.yml
 
 V1 上线后再开。代码里 `iina/AppData.swift:56` 的 `crowdinMembersLink` 暂时不动，等 luluk 自己接上 Crowdin 后再统一更新。
 
-### 2.6 移除/替换 Crash Report endpoint
+### 2.6 替换 IINA 站点引用 + 清理 Safari 扩展迁移列表
 
-**文件**：搜索源码 `colliderli` 或 `iina.io`：
+> 标题原是「移除/替换 Crash Report endpoint」，IINA 实际上没有 crash report endpoint。本步真正要处理的是：用户可见的 IINA 站点链接，以及 OpenInIINA 扩展的迁移列表。
+
+先扫一遍：
+
 ```bash
-cd /Users/erik/development/luluk
-grep -rn "colliderli\|iina\.io" iina/ --include="*.swift"
+grep -rn "colliderli\|iina\.io" iina/ OpenInIINA/ --include="*.swift" --include="*.plist"
 ```
 
-逐个评估：埋点上报相关的注释掉或换成自己的 endpoint，致谢/版权声明保留。
+**改这些**（用户可见的 IINA 站点链接）：
+
+| 文件 | 旧值 | 新值 |
+|------|------|------|
+| `iina/AppData.swift:58` | `websiteLink = "https://iina.io"` | `"https://luluk.xyz"` |
+| `iina/AppData.swift:60` | `appcastLink = "https://www.iina.io/appcast.xml"` | `"https://luluk.xyz/appcast.xml"` |
+| `iina/AppData.swift:61` | `appcastBetaLink = "https://www.iina.io/appcast-beta.xml"` | `"https://luluk.xyz/appcast-beta.xml"` |
+| `iina/GuideWindowController.swift:12` | `highlightsLink = "https://iina.io/highlights"` | `"https://luluk.xyz/highlights"` |
+| `iina/GuideWindowController.swift:66` | `starts(with: "https://iina.io/highlights/")` | `"https://luluk.xyz/highlights/"` |
+
+**删除整个 key**：
+
+| 文件 | 删什么 | 为什么 |
+|------|--------|--------|
+| `OpenInIINA/Info.plist:5-8` | `SFSafariExtensionBundleIdentifiersToUninstall` 整个 key + array | 数组里只有 `com.colliderli.openiniina`（IINA 内部从小写 Bundle ID 迁移到大小写混合时用的迁移钩子）。luluk 是新产品，没有这个迁移路径；保留它会让用户装 luluk 后 Safari 自动卸载 IINA 的旧 OpenInIINA 扩展，干扰 IINA/luluk 共存。 |
+
+**故意保留 IINA 引用**（GPL 致谢或暂未替换的资源）：
+
+- `iina/AppData.swift:55` `contributorsLink = "https://github.com/iina/iina/graphs/contributors"` — IINA 贡献者列表，GPL 致谢的一部分
+- `iina/AppData.swift:56` `crowdinMembersLink = "https://crowdin.com/project/iina"` — luluk 自己的 Crowdin 还没建（§2.5），将来一起改
+- `iina/AppData.swift:57` `wikiLink = "https://github.com/iina/iina/wiki"` — IINA wiki 对 luluk 用户可能误导，但等 luluk 自己的 wiki 站起来再统一改
+- `iina/AppData.swift:63-64` Chrome / Firefox extension link — IINA 自家浏览器扩展，luluk 暂未发布对应扩展
+
+**故意不动的非链接引用**（前几节 commit message 已说明）：
+
+- `*.swift` 里 `DispatchQueue(label: "com.colliderli.iina.*")` — GCD queue 命名约定，不影响 Bundle ID
+- `iina/PrefPluginViewController.swift` / `iina/Pages/SettingsPagePlugin.swift` 里 `iinaPluginID = "com.colliderli.iina.pluginID"` — Pasteboard type ID，技术上需要全局唯一但只在 luluk 内部使用
+- `iina/Info.plist:1384-1394` `com.colliderli.iina.build.*` keys — 构建元信息 namespace，改了要同步改读取这些 key 的代码（专门一步处理）
+- `iina/AppDelegate.swift` / `iina/Preference.swift` 里 `defaults write com.colliderli.iina ...` 注释 — 文档注释，不影响 build；luluk prefs domain 已经跟随新 Bundle ID 自动变成 `xyz.luluk.iina`，这些注释将来更新文档时一起改
+
+**OpenInIINA Safari 扩展自身的 IINA 字面**（CFBundleDisplayName / SFSafariContextMenu Text / `open-in-iina.js` 文件名 / Command 标识符等）也没在本步处理——它们涉及文件重命名 + Swift 代码同步，单独作为一个章节处理。
 
 ### 2.7 About 窗口致谢保留 IINA
 
