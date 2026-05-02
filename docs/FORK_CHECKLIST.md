@@ -45,10 +45,17 @@ luluk 不需要重新编译 mpv——IINA 在 `https://iina.io/dylibs/universal/
 
 ### 2.1 Bundle ID 替换（3 处）
 
+> ⚠️ **关键约束**：Xcode 强制要求 embedded binary 的 Bundle ID 必须以 parent app Bundle ID 为前缀。OpenInIINA 是 iina target 的 Safari 扩展（embedded binary），所以**两者的 Bundle ID 必须共享前缀**。原 IINA 用 `com.colliderli.iina` + `com.colliderli.iina.OpenInIINA`（前者是后者的前缀）。luluk 必须保持同样的结构。
+>
+> 按 SPEC §11 决策清单，main app Bundle ID = `xyz.luluk.app`。所以 OpenInIINA 必须是 `xyz.luluk.app.<TARGET_NAME>` = `xyz.luluk.app.OpenInIINA`。**main app 不能用 `xyz.luluk.$(TARGET_NAME)`（展开成 `xyz.luluk.iina`）**——那样 OpenInIINA 的 `xyz.luluk.app.*` 不再是它的前缀，build 会报 "Embedded binary's bundle identifier is not prefixed with the parent app's bundle identifier."
+
 **文件**：`Configs/iina.xcconfig` 行 26
+
+main app 的 Bundle ID 写死，**不展开 `$(TARGET_NAME)`**——SPEC §11 的决策值就是 `xyz.luluk.app`，跟 target 名 `iina` 解耦。
+
 ```diff
 - PRODUCT_BUNDLE_IDENTIFIER = com.colliderli.$(TARGET_NAME)
-+ PRODUCT_BUNDLE_IDENTIFIER = xyz.luluk.$(TARGET_NAME)
++ PRODUCT_BUNDLE_IDENTIFIER = xyz.luluk.app
 ```
 
 **文件**：`Configs/OpenInIINA.xcconfig` 行 14
