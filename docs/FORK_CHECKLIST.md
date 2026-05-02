@@ -32,7 +32,7 @@ cd /Users/erik/development/luluk
 
 > ⚠️ 改完每一节都 build 一次（⌘+B），出错回滚再继续。
 
-### 2.1 Bundle ID（2 处）
+### 2.1 Bundle ID 替换（3 处）
 
 **文件**：`Configs/iina.xcconfig` 行 26
 ```diff
@@ -46,7 +46,19 @@ cd /Users/erik/development/luluk
 + PRODUCT_BUNDLE_IDENTIFIER = xyz.luluk.app.$(TARGET_NAME)
 ```
 
+**文件**：`iina/Pages/SettingsPageUtilities.swift` 行 292
+
+代码里硬编码了 OpenInIINA 扩展的 Bundle ID（用于 Safari 偏好设置跳转），必须跟着 OpenInIINA.xcconfig 一起改，否则点「Safari 扩展」按钮会打不开。
+
+```diff
+  @objc func extSafariBtnAction() {
+-   SFSafariApplication.showPreferencesForExtension(withIdentifier: "com.colliderli.iina.OpenInIINA")
++   SFSafariApplication.showPreferencesForExtension(withIdentifier: "xyz.luluk.app.OpenInIINA")
+  }
+```
+
 > 注：Bundle ID 改后 IINA 和 luluk 可在同一台 Mac 共存，互不冲突。
+> 其他文件里的 `com.colliderli.iina.*` 字样（DispatchQueue label、Pasteboard type、Info.plist build 元信息 key、`defaults write` 注释）不是 Bundle ID 引用，**不要在本步替换**——它们改不改不影响 Bundle ID，且部分（如 `defaults write` 命令）涉及用户偏好域迁移，需要在专门的章节统一处理。
 
 ### 2.2 Sparkle 更新源
 
