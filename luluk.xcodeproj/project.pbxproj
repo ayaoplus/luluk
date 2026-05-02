@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03E05B802FA64860001DBEF4 /* SrtLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B7D2FA64860001DBEF4 /* SrtLine.swift */; };
+		03E05B812FA64860001DBEF4 /* Language.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B7B2FA64860001DBEF4 /* Language.swift */; };
+		03E05B822FA64860001DBEF4 /* Sanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B7C2FA64860001DBEF4 /* Sanitizer.swift */; };
+		03E05B832FA64860001DBEF4 /* SRTMerger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05B7E2FA64860001DBEF4 /* SRTMerger.swift */; };
 		1326717E20852D0D000FA7E2 /* SubChooseViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 1326718020852D0D000FA7E2 /* SubChooseViewController.xib */; };
 		3412DB8E2C2FC64C00BBC142 /* Equalizations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3412DB8D2C2FC64800BBC142 /* Equalizations.swift */; };
 		348F71962DE2A819006C587D /* MPVCommandWrappers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348F71952DE2A814006C587D /* MPVCommandWrappers.swift */; };
@@ -624,6 +628,10 @@
 
 /* Begin PBXFileReference section */
 		03E05B612FA643FB001DBEF4 /* lulukTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = lulukTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		03E05B7B2FA64860001DBEF4 /* Language.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Language.swift; sourceTree = "<group>"; };
+		03E05B7C2FA64860001DBEF4 /* Sanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sanitizer.swift; sourceTree = "<group>"; };
+		03E05B7D2FA64860001DBEF4 /* SrtLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SrtLine.swift; sourceTree = "<group>"; };
+		03E05B7E2FA64860001DBEF4 /* SRTMerger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRTMerger.swift; sourceTree = "<group>"; };
 		0507C25E2B5617650043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainMenu.strings; sourceTree = "<group>"; };
 		0507C25F2B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainWindowController.strings; sourceTree = "<group>"; };
 		0507C2602B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/QuickSettingViewController.strings; sourceTree = "<group>"; };
@@ -2219,6 +2227,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		03E05B7F2FA64860001DBEF4 /* AISubtitle */ = {
+			isa = PBXGroup;
+			children = (
+				03E05B7B2FA64860001DBEF4 /* Language.swift */,
+				03E05B7C2FA64860001DBEF4 /* Sanitizer.swift */,
+				03E05B7D2FA64860001DBEF4 /* SrtLine.swift */,
+				03E05B7E2FA64860001DBEF4 /* SRTMerger.swift */,
+			);
+			path = AISubtitle;
+			sourceTree = "<group>";
+		};
 		49542976216C34950058F680 /* OpenInIINA */ = {
 			isa = PBXGroup;
 			children = (
@@ -2754,6 +2773,7 @@
 		84EB1ED81D2F51D3004FA5A1 /* luluk */ = {
 			isa = PBXGroup;
 			children = (
+				03E05B7F2FA64860001DBEF4 /* AISubtitle */,
 				84FF846D1D2FF698001B318A /* deps */,
 				84A0BAA21D2FAE8200BC8DA1 /* Assets */,
 				84A0BAA71D2FAF9700BC8DA1 /* Controllers */,
@@ -3436,6 +3456,10 @@
 				84AABE8B1DBF634600D138FD /* CharEncoding.swift in Sources */,
 				8488D6DC1E1167EF00D5B952 /* FloatingPointByteCountFormatter.swift in Sources */,
 				8488D6E71E11ABE900D5B952 /* PrefNetworkViewController.swift in Sources */,
+				03E05B802FA64860001DBEF4 /* SrtLine.swift in Sources */,
+				03E05B812FA64860001DBEF4 /* Language.swift in Sources */,
+				03E05B822FA64860001DBEF4 /* Sanitizer.swift in Sources */,
+				03E05B832FA64860001DBEF4 /* SRTMerger.swift in Sources */,
 				84AABE941DBFAF1A00D138FD /* FontPickerWindowController.swift in Sources */,
 				844C59E71F7C143D008D1B00 /* CacheManager.swift in Sources */,
 				E3EC8C502F95B0A700FBB51E /* ConstraintsSugar.swift in Sources */,
