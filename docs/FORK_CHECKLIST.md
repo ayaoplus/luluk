@@ -121,18 +121,27 @@ cd /Users/erik/development/luluk
 
 ### 2.4 应用图标
 
-#### 2.4.1 生成 .icns
+> 前置条件：`assets/logo.png` 应至少 1024×1024（更高更好）。低于此尺寸 `generate_icons.sh` 会要求确认放大，1024 → 256/512 等下采样比放大画质好。当前 luluk 用的是 1254×1254 RGBA。
+
+#### 2.4.1 生成 .icns 和全套 PNG
+
 ```bash
-cd /Users/erik/development/luluk
 ./scripts/generate_icons.sh assets/logo.png
-# 输出 assets/AppIcon.icns + 全套 PNG
 ```
 
-#### 2.4.2 替换 IINA 图标
-1. 打开 Xcode → `iina/Assets.xcassets/AppIcon.appiconset/`
-2. 删除现有 IINA 图标全部尺寸
-3. 拖入 `assets/AppIcon.iconset/` 里生成的所有 .png 到对应槽位
-4. （或直接替换 `iina/Assets.xcassets/AppIcon.appiconset/Contents.json` 引用的文件）
+输出：
+- `assets/AppIcon.iconset/` 下 10 个 PNG（16/32/128/256/512 + 各 @2x，对应 16/32/32/64/128/256/256/512/512/1024 像素）
+- `assets/AppIcon.icns`（用 `iconutil` 打包的 macOS icon bundle，~1.5MB）
+
+#### 2.4.2 覆盖 Xcode AppIcon 资源
+
+`iina/Assets.xcassets/AppIcon.appiconset/Contents.json` 已经引用了和 generate_icons.sh 输出同名的文件（`icon_16x16.png` ... `icon_512x512@2x.png`），直接 cp 覆盖即可，不需要 Xcode UI 拖拽：
+
+```bash
+cp assets/AppIcon.iconset/*.png iina/Assets.xcassets/AppIcon.appiconset/
+```
+
+> 如果以后 logo.png 改了，只需要重跑 `generate_icons.sh` + 这条 cp 即可同步。`AppIcon.appiconset` 下的 PNG 都是 generated artifact，可以理解成 build 输入而不是源文件。
 
 ### 2.5 Crowdin 翻译配置
 
