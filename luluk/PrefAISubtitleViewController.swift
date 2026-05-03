@@ -86,9 +86,12 @@ class PrefAISubtitleViewController: NSViewController, PreferenceWindowEmbeddable
     // MARK: - View 构造
 
     override func loadView() {
-        // 顶层容器：宽 600（PreferenceWindowController 会再给 H 约束撑开）
-        // 高度由 stack 撑出来，超出可滚（preferenceContentIsScrollable=true）
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 600, height: 1))
+        // 顶层容器：必须关掉 autoresizing → constraints 翻译，否则 frame.height=1
+        // 会被翻成硬约束 height==1，跟内层 stack 的 top+16/bottom-16 冲突，
+        // AutoLayout 强行打破后 subview 全压成 0 高度（之前 UI 错位的根因）。
+        let v = NSView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        view = v
     }
 
     override func viewDidLoad() {
@@ -102,11 +105,14 @@ class PrefAISubtitleViewController: NSViewController, PreferenceWindowEmbeddable
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(stack)
+        // bottom 用等式（不是 <=），让 self.view 的高度跟着 stack 撑起来；
+        // PreferenceWindowController 会把 view 装进可滚 scrollView，
+        // preferenceContentIsScrollable=true 时高度可以超出可视区。
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -16)
+            stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16)
         ])
 
         loadStateFromPreferences()
