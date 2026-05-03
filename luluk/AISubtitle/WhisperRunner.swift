@@ -148,13 +148,15 @@ actor WhisperRunner {
         return args
     }
 
-    /// spawn whisper-cli + 同步等结束。Task 取消时会主动 SIGTERM 子进程
-    /// （waitUntilExit 没有 cancellation 钩子，必须从外部 terminate 才能解阻塞）。
+    /// spawn whisper-cli + 同步等结束。Task 取消时会主动 SIGTERM 子进程。
     ///
-    /// 两个 pipe 必须**并发读**，否则会出经典 Process+Pipe 死锁：
-    /// 串行 read stderr → wait → read stdout 时，子进程同时往 stderr/stdout 写，
-    /// 任何一个 pipe buffer (默认 64KB) 满了子进程就阻塞，而我们还卡在 read 另一个。
-    /// 已观察到 whisper-cli 在有真实转写内容时 stderr warning 体积超 64KB，必死锁。
+    /// **不能用 process.waitUntilExit()**——它内部依赖 RunLoop + mach port 收 termination
+    /// notification，在 DispatchQueue 工作线程上 RunLoop 不可靠。已观察到 ffmpeg/whisper
+    /// 进程早就退出了 wav 文件已写好，但 waitUntilExit 永远等不到通知，整个 pipeline 卡死。
+    /// 改用 `terminationHandler` 直接拿到 exit 通知（不依赖 RunLoop）。
+    ///
+    /// 两个 pipe 必须**并发读**避免经典 Process+Pipe 死锁——任何一端 pipe buffer
+    /// (默认 64KB) 满了子进程就阻塞写入，配合我们卡在 read 另一端就完全死锁。
     private func runWhisperCLI(arguments: [String]) async throws {
         let process = Process()
         process.executableURL = binaryURL
@@ -165,42 +167,42 @@ actor WhisperRunner {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
+        // 起两个 dispatch block 并发 drain pipe（避免 buffer 满 deadlock）
+        let drainGroup = DispatchGroup()
+        let errBox = DataBox()
+        let outBox = DataBox()
+
+        drainGroup.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
+            errBox.data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+            drainGroup.leave()
+        }
+        drainGroup.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
+            outBox.data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+            drainGroup.leave()
+        }
+
         try process.run()
         let handle = ProcessHandle(process: process)
 
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    // 并发 drain 两个 pipe；DispatchGroup 等两端都收到 EOF 再 wait
-                    let group = DispatchGroup()
-                    let errBox = DataBox()
-                    let outBox = DataBox()
-
-                    group.enter()
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        errBox.data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                        group.leave()
-                    }
-                    group.enter()
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        outBox.data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                        group.leave()
-                    }
-
-                    process.waitUntilExit()
-                    group.wait()
-
-                    if process.terminationStatus != 0 {
-                        let stderr = String(data: errBox.data, encoding: .utf8) ?? ""
-                        cont.resume(throwing: WhisperRunnerError.processFailed(
-                            exitCode: process.terminationStatus, stderr: stderr))
-                    } else {
-                        cont.resume()
-                    }
+        // 用 terminationHandler + continuation 拿 exit code（绕开 waitUntilExit 的 RunLoop 坑）
+        let exitCode: Int32 = await withTaskCancellationHandler {
+            await withCheckedContinuation { (cont: CheckedContinuation<Int32, Never>) in
+                process.terminationHandler = { p in
+                    cont.resume(returning: p.terminationStatus)
                 }
             }
         } onCancel: {
             handle.process.terminate()
+        }
+
+        // process 死了，pipe 写端被 kernel 关掉，readDataToEndOfFile 收 EOF 立刻返回
+        drainGroup.wait()
+
+        if exitCode != 0 {
+            let stderr = String(data: errBox.data, encoding: .utf8) ?? ""
+            throw WhisperRunnerError.processFailed(exitCode: exitCode, stderr: stderr)
         }
     }
 
@@ -210,7 +212,7 @@ actor WhisperRunner {
     }
 
     /// 让两个并发 dispatch block 各自写入 Data，主线程读取最终结果。
-    /// 写一次（自己的 block 内）/ 读一次（group.wait 之后），不需要锁。
+    /// 写一次（自己的 block 内）/ 读一次（drainGroup.wait 之后），不需要锁。
     private final class DataBox: @unchecked Sendable {
         var data: Data = Data()
     }

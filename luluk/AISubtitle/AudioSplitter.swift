@@ -327,11 +327,13 @@ actor AudioSplitter {
         let stderr: String
     }
 
-    /// 通用 spawn + wait + 收集 stdout/stderr。Task 取消时主动 SIGTERM 子进程
-    /// （waitUntilExit 没有 cancellation 钩子）。
-    /// 两个 pipe **并发读**避免经典 Process+Pipe 死锁——串行读时子进程任何一端
-    /// pipe buffer 满 (默认 64KB) 都会阻塞，配合我们还卡在 read 另一端就完全死。
-    /// silencedetect 的 stderr 输出体积大（每段静音两行），最容易触发。
+    /// 通用 spawn + wait + 收集 stdout/stderr。Task 取消时主动 SIGTERM 子进程。
+    ///
+    /// 用 `terminationHandler` + continuation 拿 exit code，**不用 waitUntilExit**——
+    /// 后者依赖 RunLoop + mach port 收 termination 通知，在 dispatch queue 上不可靠
+    /// （已观察 ffmpeg 早就 exit 但 waitUntilExit 永等不到通知，pipeline 卡死）。
+    ///
+    /// 两个 pipe 并发读避免 buffer 满 deadlock。
     @discardableResult
     private func runProcess(
         executable: String,
@@ -347,50 +349,49 @@ actor AudioSplitter {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
+        let drainGroup = DispatchGroup()
+        let outBox = DataBox()
+        let errBox = DataBox()
+
+        drainGroup.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
+            outBox.data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+            drainGroup.leave()
+        }
+        drainGroup.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
+            errBox.data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+            drainGroup.leave()
+        }
+
         try process.run()
         let handle = ProcessHandle(process: process)
 
-        let result: ProcessResult = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<ProcessResult, Error>) in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    let group = DispatchGroup()
-                    let outBox = DataBox()
-                    let errBox = DataBox()
-
-                    group.enter()
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        outBox.data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                        group.leave()
-                    }
-                    group.enter()
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        errBox.data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                        group.leave()
-                    }
-
-                    process.waitUntilExit()
-                    group.wait()
-
-                    let stdoutStr = String(data: outBox.data, encoding: .utf8) ?? ""
-                    let stderrStr = String(data: errBox.data, encoding: .utf8) ?? ""
-                    let code = process.terminationStatus
-                    cont.resume(returning: ProcessResult(exitCode: code, stdout: stdoutStr, stderr: stderrStr))
+        let exitCode: Int32 = await withTaskCancellationHandler {
+            await withCheckedContinuation { (cont: CheckedContinuation<Int32, Never>) in
+                process.terminationHandler = { p in
+                    cont.resume(returning: p.terminationStatus)
                 }
             }
         } onCancel: {
             handle.process.terminate()
         }
 
+        drainGroup.wait()
+
         try Task.checkCancellation()
 
-        if result.exitCode != 0 && !allowNonZeroExit {
+        let stdoutStr = String(data: outBox.data, encoding: .utf8) ?? ""
+        let stderrStr = String(data: errBox.data, encoding: .utf8) ?? ""
+
+        if exitCode != 0 && !allowNonZeroExit {
             throw AudioSplitterError.processFailed(
                 command: ([executable] + arguments).joined(separator: " "),
-                exitCode: result.exitCode,
-                stderr: result.stderr
+                exitCode: exitCode,
+                stderr: stderrStr
             )
         }
-        return result
+        return ProcessResult(exitCode: exitCode, stdout: stdoutStr, stderr: stderrStr)
     }
 
     private struct ProcessHandle: @unchecked Sendable {
