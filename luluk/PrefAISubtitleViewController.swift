@@ -8,15 +8,19 @@
 //  AI 字幕设置面板（M4）。程序化构造，无 xib。
 //  对应 docs/AI_SUBTITLE_DESIGN.md §3.4。
 //
-//  4 个 section：启用 / Whisper 模型 / 翻译服务 / 字幕样式
+//  布局策略：跳过 PreferenceViewController.sectionViews 机制（嵌套 NSStackView
+//  跟父类的 .fill distribution 算不齐高度，会出现子视图压成 0 高度的诡异情况）。
+//  自己在 loadView 里直接拼一个顶层垂直 NSStackView，所有控件都是它的 arranged
+//  subview，section 之间用 NSBox.horizontalLine 分隔。
+//
 //  Provider key 走 AIKeychain，其它 toggles 走 Preference。
-//  保存 key 时 post .luluk_aiSubtitleConfigChanged 让 PlayerCore 重建 service。
+//  保存 key 时 post .lulukAISubtitleConfigChanged 让 PlayerCore 重建 service。
 //
 
 import Cocoa
 
 @objcMembers
-class PrefAISubtitleViewController: PreferenceViewController, PreferenceWindowEmbeddable {
+class PrefAISubtitleViewController: NSViewController, PreferenceWindowEmbeddable {
 
     // MARK: - PreferenceWindowEmbeddable
 
@@ -28,20 +32,12 @@ class PrefAISubtitleViewController: PreferenceViewController, PreferenceWindowEm
     }
 
     var preferenceTabImage: NSImage {
-        return makeSymbol("captions.bubble.fill", fallbackImage: "pref_sub")
+        guard #available(macOS 14, *) else { return NSImage(named: "pref_sub")! }
+        let cfg = NSImage.SymbolConfiguration(pointSize: 18, weight: .bold)
+        return NSImage.findSFSymbol(["captions.bubble.fill", "captions.bubble"], withConfiguration: cfg)
     }
 
-    /// 提供给 PreferenceViewController.viewDidLoad 装到 NSStackView。
-    override var sectionViews: [NSView] {
-        return [enableSection, whisperSection, providerSection, styleSection]
-    }
-
-    // MARK: - Section views（loadView 时填）
-
-    private var enableSection: NSView!
-    private var whisperSection: NSView!
-    private var providerSection: NSView!
-    private var styleSection: NSView!
+    var preferenceContentIsScrollable: Bool { true }
 
     // MARK: - 控件引用（要在保存/读取时回访）
 
@@ -50,7 +46,8 @@ class PrefAISubtitleViewController: PreferenceViewController, PreferenceWindowEm
     private var whisperModelPopup: NSPopUpButton!
     private var sourceLangModePopup: NSPopUpButton!
     private var manualSourceLangPopup: NSPopUpButton!
-    private var manualSourceLangContainer: NSView!
+    /// 整行（label + popup），mode=auto 时整行隐藏（NSStackView 会自动收回空间）。
+    private var manualSourceLangRow: NSStackView!
 
     // MARK: - 静态选项表
 
@@ -89,128 +86,199 @@ class PrefAISubtitleViewController: PreferenceViewController, PreferenceWindowEm
     // MARK: - View 构造
 
     override func loadView() {
-        // 顶层容器：宽 600，高度由 stackView 撑开
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: 600, height: 1))
-        view = root
-
-        enableSection = makeEnableSection()
-        whisperSection = makeWhisperSection()
-        providerSection = makeProviderSection()
-        styleSection = makeStyleSection()
+        // 顶层容器：宽 600（PreferenceWindowController 会再给 H 约束撑开）
+        // 高度由 stack 撑出来，超出可滚（preferenceContentIsScrollable=true）
+        view = NSView(frame: NSRect(x: 0, y: 0, width: 600, height: 1))
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // 顶层垂直 NSStackView：所有控件 + section 分隔线全部 flatten 进来
+        let stack = NSStackView(views: buildAllSubviews())
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -16)
+        ])
+
         loadStateFromPreferences()
-        refreshSourceLangManualVisibility(animated: false)
+        refreshSourceLangManualVisibility()
     }
 
-    // MARK: - 各 Section 构造
+    /// 从顶到底依次组装所有控件。每个"section"=标题 + 一组控件 + （可选）hint，
+    /// section 之间用 horizontalLine + 上下 padding 隔开。
+    private func buildAllSubviews() -> [NSView] {
+        var rows: [NSView] = []
 
-    private func makeEnableSection() -> NSView {
-        let title = makeSectionTitle("AI 字幕")
-        let cb = NSButton(checkboxWithTitle: "启用 AI 字幕（视频打开时自动生成）", target: self, action: #selector(toggleEnabled(_:)))
-        cb.state = Preference.bool(for: .aiSubtitleEnabled) ? .on : .off
-        let hint = makeHintLabel("仅本地视频文件生效；网络流和无法识别的格式会自动跳过。")
-        return verticalStack([title, cb, hint])
+        // ─── Section 1: AI 字幕开关 ───
+        rows.append(sectionTitle("AI 字幕"))
+        let enableCB = checkbox(title: "启用 AI 字幕（视频打开时自动生成）",
+                                key: .aiSubtitleEnabled,
+                                action: #selector(toggleEnabled(_:)))
+        rows.append(enableCB)
+        rows.append(hintLabel("仅本地视频文件生效；网络流和无法识别的格式会自动跳过。"))
+
+        rows.append(sectionDivider())
+
+        // ─── Section 2: Whisper 模型 ───
+        rows.append(sectionTitle("Whisper 模型"))
+        whisperModelPopup = makePopup(items: Self.whisperModels,
+                                      action: #selector(whisperModelChanged(_:)))
+        rows.append(whisperModelPopup)
+        rows.append(hintLabel("V1 内置 turbo / large-v3 / medium-turbo / tiny。模型尚未下载时首次使用会触发自动下载（M5 实装）。"))
+
+        rows.append(sectionDivider())
+
+        // ─── Section 3: 翻译服务 ───
+        rows.append(sectionTitle("翻译服务"))
+        let providerItems = Self.providers.map { ($0.0, $0.1) }
+        providerPopup = makePopup(items: providerItems, action: #selector(providerChanged(_:)))
+        // 给非 DeepSeek 的项打灰
+        for (i, (_, _, enabled)) in Self.providers.enumerated() {
+            providerPopup.item(at: i)?.isEnabled = enabled
+        }
+        rows.append(providerPopup)
+
+        // DeepSeek API Key 输入行
+        rows.append(makeKeyRow())
+        rows.append(hintLabel("Key 存储在 macOS Keychain 中（不以明文写入设置文件）。失焦或回车时自动保存。其它 provider 在 M5 上线。"))
+
+        rows.append(sectionDivider())
+
+        // ─── Section 4: 字幕样式 ───
+        rows.append(sectionTitle("字幕样式"))
+        rows.append(checkbox(title: "双语字幕（原文上 译文下）",
+                             key: .aiSubtitleBilingual,
+                             action: #selector(toggleBilingual(_:))))
+        rows.append(checkbox(title: "字幕文件变更时自动刷新（实验性）",
+                             key: .aiSubtitleAutoReload,
+                             action: #selector(toggleAutoReload(_:))))
+
+        // 识别语种模式行
+        sourceLangModePopup = makePopup(items: Self.sourceLangModes,
+                                        action: #selector(sourceLangModeChanged(_:)))
+        rows.append(labeledRow("识别语种:", control: sourceLangModePopup))
+
+        // 手动语种行（mode=manual 时可见）
+        manualSourceLangPopup = makePopup(items: Self.manualSourceLangs,
+                                          action: #selector(manualSourceLangChanged(_:)))
+        manualSourceLangRow = labeledRow("源语言:", control: manualSourceLangPopup)
+        rows.append(manualSourceLangRow)
+
+        return rows
     }
 
-    private func makeWhisperSection() -> NSView {
-        let title = makeSectionTitle("Whisper 模型")
+    // MARK: - 子视图工厂
+
+    private func sectionTitle(_ text: String) -> NSTextField {
+        let f = NSTextField(labelWithString: text)
+        f.font = .systemFont(ofSize: 13, weight: .semibold)
+        f.translatesAutoresizingMaskIntoConstraints = false
+        return f
+    }
+
+    private func sectionDivider() -> NSView {
+        // NSBox 风格的细分隔线 + 上下额外 padding（用 spacer 包一层避免 NSStackView 把分隔线压扁）
+        let line = NSBox()
+        line.boxType = .separator
+        line.translatesAutoresizingMaskIntoConstraints = false
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(line)
+        NSLayoutConstraint.activate([
+            line.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            line.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            line.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+            line.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
+            line.heightAnchor.constraint(equalToConstant: 1),
+            // 整体显式高度，不让 NSStackView 算错
+            container.heightAnchor.constraint(equalToConstant: 13)
+        ])
+        return container
+    }
+
+    private func hintLabel(_ text: String) -> NSTextField {
+        let f = NSTextField(wrappingLabelWithString: text)
+        f.font = .systemFont(ofSize: 11)
+        f.textColor = .secondaryLabelColor
+        f.translatesAutoresizingMaskIntoConstraints = false
+        // 这一行的最大宽度让 Auto Layout 算出来；只给一个 hugging 提示
+        f.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return f
+    }
+
+    private func checkbox(title: String, key: Preference.Key, action: Selector) -> NSButton {
+        let b = NSButton(checkboxWithTitle: title, target: self, action: action)
+        b.state = Preference.bool(for: key) ? .on : .off
+        b.translatesAutoresizingMaskIntoConstraints = false
+        return b
+    }
+
+    private func makePopup(items: [(String, String)], action: Selector) -> NSPopUpButton {
         let popup = NSPopUpButton(frame: .zero, pullsDown: false)
         popup.target = self
-        popup.action = #selector(whisperModelChanged(_:))
-        for (raw, label) in Self.whisperModels {
+        popup.action = action
+        popup.translatesAutoresizingMaskIntoConstraints = false
+        for (raw, label) in items {
             popup.addItem(withTitle: label)
             popup.lastItem?.representedObject = raw
         }
-        whisperModelPopup = popup
-        let hint = makeHintLabel("V1 内置 turbo / large-v3 / medium-turbo / tiny。模型尚未下载时首次使用会触发自动下载（M5 实装）。")
-        return verticalStack([title, popup, hint])
+        return popup
     }
 
-    private func makeProviderSection() -> NSView {
-        let title = makeSectionTitle("翻译服务")
-
-        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-        popup.target = self
-        popup.action = #selector(providerChanged(_:))
-        for (raw, label, enabled) in Self.providers {
-            popup.addItem(withTitle: label)
-            let item = popup.lastItem!
-            item.representedObject = raw
-            item.isEnabled = enabled
-        }
-        providerPopup = popup
-
-        // DeepSeek API Key 输入框（M4 唯一可用 provider）
-        let keyLabel = makePlainLabel("DeepSeek API Key:")
-        let keyField = NSSecureTextField()
-        keyField.placeholderString = "sk-..."
-        keyField.target = self
-        keyField.action = #selector(deepseekKeyCommitted(_:))
-        keyField.delegate = self
-        keyField.translatesAutoresizingMaskIntoConstraints = false
-        keyField.widthAnchor.constraint(greaterThanOrEqualToConstant: 360).isActive = true
-        deepseekKeyField = keyField
-
-        let keyRow = horizontalStack([keyLabel, keyField])
-
-        let hint = makeHintLabel("Key 存储在 macOS Keychain 中（不以明文写入设置文件）。失焦或回车时自动保存。其它 provider 在 M5 上线。")
-
-        return verticalStack([title, popup, keyRow, hint])
+    /// 生成 "label: control" 一行；用 NSStackView 水平排，整行作为顶层 stack 的 arranged subview。
+    private func labeledRow(_ label: String, control: NSView) -> NSStackView {
+        let lbl = NSTextField(labelWithString: label)
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        control.translatesAutoresizingMaskIntoConstraints = false
+        let row = NSStackView(views: [lbl, control])
+        row.orientation = .horizontal
+        row.alignment = .firstBaseline
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+        return row
     }
 
-    private func makeStyleSection() -> NSView {
-        let title = makeSectionTitle("字幕样式")
+    private func makeKeyRow() -> NSStackView {
+        let lbl = NSTextField(labelWithString: "DeepSeek API Key:")
+        lbl.translatesAutoresizingMaskIntoConstraints = false
 
-        let bilingualCB = NSButton(checkboxWithTitle: "双语字幕（原文上 译文下）", target: self, action: #selector(toggleBilingual(_:)))
-        bilingualCB.state = Preference.bool(for: .aiSubtitleBilingual) ? .on : .off
+        let field = NSSecureTextField()
+        field.placeholderString = "sk-..."
+        field.target = self
+        field.action = #selector(deepseekKeyCommitted(_:))
+        field.delegate = self
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.widthAnchor.constraint(greaterThanOrEqualToConstant: 360).isActive = true
+        deepseekKeyField = field
 
-        let autoReloadCB = NSButton(checkboxWithTitle: "字幕文件变更时自动刷新（实验性）", target: self, action: #selector(toggleAutoReload(_:)))
-        autoReloadCB.state = Preference.bool(for: .aiSubtitleAutoReload) ? .on : .off
-
-        // 源语言模式
-        let modeLabel = makePlainLabel("识别语种:")
-        let modePopup = NSPopUpButton(frame: .zero, pullsDown: false)
-        modePopup.target = self
-        modePopup.action = #selector(sourceLangModeChanged(_:))
-        for (raw, label) in Self.sourceLangModes {
-            modePopup.addItem(withTitle: label)
-            modePopup.lastItem?.representedObject = raw
-        }
-        sourceLangModePopup = modePopup
-        let modeRow = horizontalStack([modeLabel, modePopup])
-
-        let manualPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-        manualPopup.target = self
-        manualPopup.action = #selector(manualSourceLangChanged(_:))
-        for (raw, label) in Self.manualSourceLangs {
-            manualPopup.addItem(withTitle: label)
-            manualPopup.lastItem?.representedObject = raw
-        }
-        manualSourceLangPopup = manualPopup
-        let manualRow = horizontalStack([makePlainLabel("源语言:"), manualPopup])
-        manualSourceLangContainer = manualRow
-
-        return verticalStack([title, bilingualCB, autoReloadCB, modeRow, manualRow])
+        let row = NSStackView(views: [lbl, field])
+        row.orientation = .horizontal
+        row.alignment = .firstBaseline
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+        return row
     }
 
     // MARK: - 状态加载（从 Preference / Keychain）
 
     private func loadStateFromPreferences() {
-        // Whisper model
         let currentModel = Preference.string(for: .aiSubtitleWhisperModel) ?? "large-v3-turbo"
         selectPopup(whisperModelPopup, byRepresentedObject: currentModel)
 
-        // Provider
         let currentProvider = Preference.string(for: .aiSubtitleProvider) ?? "deepseek"
         selectPopup(providerPopup, byRepresentedObject: currentProvider)
 
-        // DeepSeek key
         deepseekKeyField.stringValue = AIKeychain.readKey(for: .deepseek) ?? ""
 
-        // Source language mode + manual lang
         let mode = Preference.string(for: .aiSubtitleSourceLanguageMode) ?? "auto"
         selectPopup(sourceLangModePopup, byRepresentedObject: mode)
 
@@ -297,7 +365,7 @@ class PrefAISubtitleViewController: PreferenceViewController, PreferenceWindowEm
     @objc func sourceLangModeChanged(_ sender: NSPopUpButton) {
         guard let raw = sender.selectedItem?.representedObject as? String else { return }
         Preference.set(raw, for: .aiSubtitleSourceLanguageMode)
-        refreshSourceLangManualVisibility(animated: true)
+        refreshSourceLangManualVisibility()
         postConfigChanged()
     }
 
@@ -307,53 +375,14 @@ class PrefAISubtitleViewController: PreferenceViewController, PreferenceWindowEm
         postConfigChanged()
     }
 
-    private func refreshSourceLangManualVisibility(animated: Bool) {
+    private func refreshSourceLangManualVisibility() {
         let isManual = (Preference.string(for: .aiSubtitleSourceLanguageMode) ?? "auto") == "manual"
-        manualSourceLangContainer?.isHidden = !isManual
+        manualSourceLangRow?.isHidden = !isManual
     }
 
     /// 通知所有 PlayerCore：provider/key/模型 变了，重建 AISubtitleService。
     private func postConfigChanged() {
         NotificationCenter.default.post(name: .lulukAISubtitleConfigChanged, object: nil)
-    }
-
-    // MARK: - 小工具：UI 构造 helpers
-
-    private func makeSectionTitle(_ text: String) -> NSTextField {
-        let f = NSTextField(labelWithString: text)
-        f.font = .systemFont(ofSize: 13, weight: .semibold)
-        return f
-    }
-
-    private func makePlainLabel(_ text: String) -> NSTextField {
-        let f = NSTextField(labelWithString: text)
-        return f
-    }
-
-    private func makeHintLabel(_ text: String) -> NSTextField {
-        let f = NSTextField(wrappingLabelWithString: text)
-        f.font = .systemFont(ofSize: 11)
-        f.textColor = .secondaryLabelColor
-        f.preferredMaxLayoutWidth = 540
-        return f
-    }
-
-    private func verticalStack(_ views: [NSView]) -> NSStackView {
-        let s = NSStackView(views: views)
-        s.orientation = .vertical
-        s.alignment = .leading
-        s.spacing = 8
-        s.translatesAutoresizingMaskIntoConstraints = false
-        return s
-    }
-
-    private func horizontalStack(_ views: [NSView]) -> NSStackView {
-        let s = NSStackView(views: views)
-        s.orientation = .horizontal
-        s.alignment = .firstBaseline
-        s.spacing = 8
-        s.translatesAutoresizingMaskIntoConstraints = false
-        return s
     }
 }
 
