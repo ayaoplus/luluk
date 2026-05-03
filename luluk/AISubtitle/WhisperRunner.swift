@@ -150,14 +150,17 @@ actor WhisperRunner {
 
     /// spawn whisper-cli + 同步等结束。Task 取消时会主动 SIGTERM 子进程
     /// （waitUntilExit 没有 cancellation 钩子，必须从外部 terminate 才能解阻塞）。
-    /// codex finding #4：之前是 fire-and-forget cancel，子进程会跑到天荒地老。
+    ///
+    /// 两个 pipe 必须**并发读**，否则会出经典 Process+Pipe 死锁：
+    /// 串行 read stderr → wait → read stdout 时，子进程同时往 stderr/stdout 写，
+    /// 任何一个 pipe buffer (默认 64KB) 满了子进程就阻塞，而我们还卡在 read 另一个。
+    /// 已观察到 whisper-cli 在有真实转写内容时 stderr warning 体积超 64KB，必死锁。
     private func runWhisperCLI(arguments: [String]) async throws {
         let process = Process()
         process.executableURL = binaryURL
         process.arguments = arguments
 
         let stderrPipe = Pipe()
-        // stdout 也接管，避免被 GUI 父进程的 stdout 缓冲卡住
         let stdoutPipe = Pipe()
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
@@ -167,13 +170,28 @@ actor WhisperRunner {
 
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                // 同步阻塞 wait 放到 background queue，避免堵 actor / cooperative pool
                 DispatchQueue.global(qos: .userInitiated).async {
-                    let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-                    _ = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                    // 并发 drain 两个 pipe；DispatchGroup 等两端都收到 EOF 再 wait
+                    let group = DispatchGroup()
+                    let errBox = DataBox()
+                    let outBox = DataBox()
+
+                    group.enter()
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        errBox.data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                        group.leave()
+                    }
+                    group.enter()
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        outBox.data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                        group.leave()
+                    }
+
                     process.waitUntilExit()
+                    group.wait()
+
                     if process.terminationStatus != 0 {
-                        let stderr = String(data: errData, encoding: .utf8) ?? ""
+                        let stderr = String(data: errBox.data, encoding: .utf8) ?? ""
                         cont.resume(throwing: WhisperRunnerError.processFailed(
                             exitCode: process.terminationStatus, stderr: stderr))
                     } else {
@@ -182,15 +200,19 @@ actor WhisperRunner {
                 }
             }
         } onCancel: {
-            // SIGTERM 通常足够；whisper-cli 没装信号 trap 也会被默认行为退出
             handle.process.terminate()
         }
     }
 
     /// Process 不是 Sendable，但跨 actor 边界传引用对 terminate() 是安全的。
-    /// 用 @unchecked Sendable 包一层避免编译器警告。
     private struct ProcessHandle: @unchecked Sendable {
         let process: Process
+    }
+
+    /// 让两个并发 dispatch block 各自写入 Data，主线程读取最终结果。
+    /// 写一次（自己的 block 内）/ 读一次（group.wait 之后），不需要锁。
+    private final class DataBox: @unchecked Sendable {
+        var data: Data = Data()
     }
 
     // MARK: - JSON 解析

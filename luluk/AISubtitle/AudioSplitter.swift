@@ -328,7 +328,10 @@ actor AudioSplitter {
     }
 
     /// 通用 spawn + wait + 收集 stdout/stderr。Task 取消时主动 SIGTERM 子进程
-    /// （waitUntilExit 没有 cancellation 钩子）。codex finding #4。
+    /// （waitUntilExit 没有 cancellation 钩子）。
+    /// 两个 pipe **并发读**避免经典 Process+Pipe 死锁——串行读时子进程任何一端
+    /// pipe buffer 满 (默认 64KB) 都会阻塞，配合我们还卡在 read 另一端就完全死。
+    /// silencedetect 的 stderr 输出体积大（每段静音两行），最容易触发。
     @discardableResult
     private func runProcess(
         executable: String,
@@ -350,12 +353,26 @@ actor AudioSplitter {
         let result: ProcessResult = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<ProcessResult, Error>) in
                 DispatchQueue.global(qos: .userInitiated).async {
-                    // 必须先 read 再 wait，否则大 pipe 会塞满阻塞子进程。
-                    let outData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                    let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                    let group = DispatchGroup()
+                    let outBox = DataBox()
+                    let errBox = DataBox()
+
+                    group.enter()
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        outBox.data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                        group.leave()
+                    }
+                    group.enter()
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        errBox.data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                        group.leave()
+                    }
+
                     process.waitUntilExit()
-                    let stdoutStr = String(data: outData, encoding: .utf8) ?? ""
-                    let stderrStr = String(data: errData, encoding: .utf8) ?? ""
+                    group.wait()
+
+                    let stdoutStr = String(data: outBox.data, encoding: .utf8) ?? ""
+                    let stderrStr = String(data: errBox.data, encoding: .utf8) ?? ""
                     let code = process.terminationStatus
                     cont.resume(returning: ProcessResult(exitCode: code, stdout: stdoutStr, stderr: stderrStr))
                 }
@@ -364,7 +381,6 @@ actor AudioSplitter {
             handle.process.terminate()
         }
 
-        // cancel 路径上 terminate 后 process 也会 exit 非 0；这里把它统一翻译成 CancellationError。
         try Task.checkCancellation()
 
         if result.exitCode != 0 && !allowNonZeroExit {
@@ -377,9 +393,12 @@ actor AudioSplitter {
         return result
     }
 
-    /// 同 WhisperRunner.ProcessHandle：跨 actor 边界传 Process 引用 + 调 terminate() 是安全的。
     private struct ProcessHandle: @unchecked Sendable {
         let process: Process
+    }
+
+    private final class DataBox: @unchecked Sendable {
+        var data: Data = Data()
     }
 
     // MARK: - 定位 ffmpeg/ffprobe
