@@ -42,6 +42,8 @@ class PrefAISubtitleViewController: NSViewController, PreferenceWindowEmbeddable
     // MARK: - 控件引用（要在保存/读取时回访）
 
     private var deepseekKeyField: NSSecureTextField!
+    /// 显示"已保存"反馈。default 隐藏；写入成功后显示 1.5s 然后淡出。
+    private var deepseekSavedLabel: NSTextField!
     private var providerPopup: NSPopUpButton!
     private var whisperModelPopup: NSPopUpButton!
     private var sourceLangModePopup: NSPopUpButton!
@@ -266,7 +268,16 @@ class PrefAISubtitleViewController: NSViewController, PreferenceWindowEmbeddable
         field.widthAnchor.constraint(greaterThanOrEqualToConstant: 360).isActive = true
         deepseekKeyField = field
 
-        let row = NSStackView(views: [lbl, field])
+        // "已保存"反馈 label。typing 防抖保存成功后短暂显示，让用户看到反馈
+        // （不然 keychain 写入静默成功，用户不确定 key 是否真存了）。
+        let saved = NSTextField(labelWithString: "✓ 已保存")
+        saved.font = .systemFont(ofSize: 11)
+        saved.textColor = .systemGreen
+        saved.translatesAutoresizingMaskIntoConstraints = false
+        saved.isHidden = true
+        deepseekSavedLabel = saved
+
+        let row = NSStackView(views: [lbl, field, saved])
         row.orientation = .horizontal
         row.alignment = .firstBaseline
         row.spacing = 8
@@ -334,16 +345,48 @@ class PrefAISubtitleViewController: NSViewController, PreferenceWindowEmbeddable
     }
 
     @objc func deepseekKeyCommitted(_ sender: NSSecureTextField) {
-        saveDeepSeekKey(sender.stringValue)
+        // 取消等待中的防抖任务，立刻保存
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(performDebouncedKeySave), object: nil)
+        saveDeepSeekKey(sender.stringValue, showFeedback: true)
     }
 
-    private func saveDeepSeekKey(_ value: String) {
+    /// 防抖触发的实际保存。perform 派发时它的 selector 不能带参数，所以这里
+    /// 现读 textField 当前值。
+    @objc private func performDebouncedKeySave() {
+        saveDeepSeekKey(deepseekKeyField.stringValue, showFeedback: true)
+    }
+
+    /// - Parameter showFeedback: true → 显示"✓ 已保存"小绿字。viewWillDisappear
+    ///   走过来 false（用户没主动改也会触发，没必要 flash 反馈）。
+    private func saveDeepSeekKey(_ value: String, showFeedback: Bool) {
         do {
             try AIKeychain.writeKey(value, for: .deepseek)
             postConfigChanged()
+            if showFeedback {
+                showSavedFeedback()
+            }
         } catch {
             showFreeFormAlert(text: "保存 DeepSeek Key 失败：\(error.localizedDescription)", style: .warning)
         }
+    }
+
+    /// 让"✓ 已保存"绿色 label 出现 1.5s 然后淡出。
+    private func showSavedFeedback() {
+        guard let label = deepseekSavedLabel else { return }
+        label.alphaValue = 1
+        label.isHidden = false
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(hideSavedFeedback), object: nil)
+        perform(#selector(hideSavedFeedback), with: nil, afterDelay: 1.5)
+    }
+
+    @objc private func hideSavedFeedback() {
+        guard let label = deepseekSavedLabel else { return }
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.4
+            label.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            self?.deepseekSavedLabel?.isHidden = true
+        })
     }
 
     /// Utility.showAlert 只接受 localization key；这里需要带变量的自由文本，自己构造 NSAlert。
@@ -392,12 +435,43 @@ class PrefAISubtitleViewController: NSViewController, PreferenceWindowEmbeddable
     }
 }
 
-// MARK: - NSTextFieldDelegate（失焦也保存 key，不只回车）
+// MARK: - NSTextFieldDelegate
+//
+// 三层保险，确保用户输入的 key 一定写进 Keychain：
+//   1. controlTextDidChange：每次按键 → 防抖 0.5s 后写
+//      （处理常见场景：用户输入完 key 直接关 settings 窗 / 切 tab / 开视频）
+//   2. controlTextDidEndEditing：失焦 / Enter → 立即写
+//   3. viewWillDisappear：face-off 时强制 commit + 写
+//
+// 之前只有 #2，用户输入完 key 直接开视频 textfield 不失焦 → 编辑没 commit
+// → keychain 一直空 → 流水线 fail "未配置"。
 
 extension PrefAISubtitleViewController: NSTextFieldDelegate {
+    func controlTextDidChange(_ obj: Notification) {
+        guard let f = obj.object as? NSSecureTextField, f === deepseekKeyField else { return }
+        // 防抖：每次按键重置 0.5s 计时器，等用户停下再写 keychain
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(performDebouncedKeySave), object: nil)
+        perform(#selector(performDebouncedKeySave), with: nil, afterDelay: 0.5)
+    }
+
     func controlTextDidEndEditing(_ obj: Notification) {
         guard let f = obj.object as? NSSecureTextField, f === deepseekKeyField else { return }
-        saveDeepSeekKey(f.stringValue)
+        // 取消防抖，直接保存
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(performDebouncedKeySave), object: nil)
+        saveDeepSeekKey(f.stringValue, showFeedback: true)
+    }
+}
+
+// MARK: - 视图生命周期：disappear 时强制 commit pending edits
+
+extension PrefAISubtitleViewController {
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        // 用户切 tab / 关窗 / 开视频前，把 textfield 的 pending 编辑落盘
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(performDebouncedKeySave), object: nil)
+        if let f = deepseekKeyField {
+            saveDeepSeekKey(f.stringValue, showFeedback: false)
+        }
     }
 }
 
