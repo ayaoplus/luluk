@@ -148,6 +148,7 @@
 "preference.ui" = "用户界面";
 "preference.video_audio" = "视频/音频";
 "preference.subtitle" = "字幕";
+"preference.ai_subtitle" = "AI 字幕";
 "preference.network" = "网络";
 "preference.control" = "控制";
 "preference.keybindings" = "键位设置";

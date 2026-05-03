@@ -492,6 +492,10 @@ class MainWindowController: PlayerWindowController {
 
   @IBOutlet weak var pipOverlayView: NSVisualEffectView!
 
+  /// luluk: AI 字幕进度面板（M4）。windowDidLoad 时 attach 到 contentView 右上角。
+  /// 订阅 player.aiSubtitleService.progressStream，按状态自动 show/hide。
+  lazy var aiSubtitleProgressVC: AISubtitleProgressViewController = AISubtitleProgressViewController()
+
   lazy var pluginOverlayViewContainer: NSView! = {
     guard let window = window, let cv = window.contentView else { return nil }
     let view = NSView(frame: .zero)
@@ -607,6 +611,11 @@ class MainWindowController: PlayerWindowController {
     // thumbnail peek view
     window.contentView?.addSubview(thumbnailPeekView)
     thumbnailPeekView.isHidden = true
+
+    // luluk: AI 字幕进度面板（M4）—— 挂在窗口右上角，订阅 player.aiSubtitleService.progressStream
+    if let cv = window.contentView {
+      aiSubtitleProgressVC.attach(to: cv, player: player)
+    }
 
     // other initialization
     titleBarBottomBorder.fillColor = NSColor(named: .titleBarBorder)!
@@ -1284,6 +1293,8 @@ class MainWindowController: PlayerWindowController {
 
   func windowWillClose(_ notification: Notification) {
     shouldApplyInitialWindowSize = true
+    // luluk: 关窗时停掉 AI 字幕进度面板的订阅，避免 Task 泄漏
+    aiSubtitleProgressVC.detach()
     // Close PIP
     if pipStatus == .inPIP {
       exitPIP()

@@ -225,14 +225,62 @@ class PlayerCore: NSObject {
   lazy var info: PlaybackInfo = PlaybackInfo(self)
 
   /// luluk: AI 字幕服务（每个 PlayerCore 1 个，跟 info 同款 1:1 模式）。
-  /// 第一次访问时从 Preference 读 provider + key 创建。M3 单 provider（DeepSeek）。
-  /// 后续 M5 起这里要支持 fallback 链 + 用户运行时切换 provider。
+  /// 按需重建：每次访问 getter 都会比较当前 Preference + Keychain 的 provider/key
+  /// 跟上次创建时的快照——变了就 cancel 旧 service 重建，否则复用。
+  /// M4 起 key 改走 Keychain（AIKeychain.readKey）；provider 变更通过 Notification 触发失效。
   /// 详见 docs/AI_SUBTITLE_DESIGN.md §3.1。
-  lazy var aiSubtitleService: AISubtitleService = {
-    let key = Preference.string(for: .aiSubtitleDeepSeekKey) ?? ""
-    let provider = DeepSeekProvider(apiKey: key)
-    return AISubtitleService(player: self, provider: provider)
-  }()
+  private var _aiSubtitleService: AISubtitleService?
+  private var _aiSubtitleConfigSnapshot: String = ""
+
+  var aiSubtitleService: AISubtitleService {
+    let snapshot = Self.currentAISubtitleConfigSnapshot()
+    if let s = _aiSubtitleService, snapshot == _aiSubtitleConfigSnapshot {
+      return s
+    }
+    if let old = _aiSubtitleService {
+      Task { await old.cancel() }
+    }
+    let provider = Self.makeCurrentTranslationProvider()
+    let s = AISubtitleService(player: self, provider: provider)
+    _aiSubtitleService = s
+    _aiSubtitleConfigSnapshot = snapshot
+    NSLog("%@", "[luluk-ai] AISubtitleService (re)built for player=\(label ?? "?") snapshot=\(snapshot.hashValue)")
+    return s
+  }
+
+  /// 设置面板修改 provider/key 后会 invalidate 缓存——下次 getter 触发重建。
+  func invalidateAISubtitleService() {
+    if let old = _aiSubtitleService {
+      Task { await old.cancel() }
+    }
+    _aiSubtitleService = nil
+    _aiSubtitleConfigSnapshot = ""
+  }
+
+  /// 把当前 Preference + Keychain 状态序列化成短字符串，作为 service 的"配置指纹"。
+  /// hash 不变就复用 service；变了就重建。
+  private static func currentAISubtitleConfigSnapshot() -> String {
+    let providerName = Preference.string(for: .aiSubtitleProvider) ?? "deepseek"
+    // 目前所有可用的 provider 都是 DeepSeek，key 取它的就够了；
+    // M5 加其它 provider 时同步把对应 key 拼进 snapshot。
+    let dsKey = AIKeychain.readKey(for: .deepseek) ?? ""
+    return "\(providerName)|\(dsKey.count)|\(dsKey.hashValue)"
+  }
+
+  /// 按当前 Preference + Keychain 实例化对应 provider。
+  /// M4：只支持 deepseek；其它 provider 在设置面板里被 disable，不会进这里。
+  /// 万一 Preference 被 defaults write 改成未实现的 provider，fallback 到 DeepSeek（空 key → isReady=false → 流水线 fail）。
+  private static func makeCurrentTranslationProvider() -> TranslationProvider {
+    let providerName = Preference.string(for: .aiSubtitleProvider) ?? "deepseek"
+    let dsKey = AIKeychain.readKey(for: .deepseek) ?? ""
+    switch providerName {
+    case "deepseek":
+      return DeepSeekProvider(apiKey: dsKey)
+    default:
+      NSLog("%@", "[luluk-ai] provider=\(providerName) not implemented in M4, fallback to DeepSeek")
+      return DeepSeekProvider(apiKey: dsKey)
+    }
+  }
 
   var syncUITimer: Timer?
 
@@ -325,6 +373,18 @@ class PlayerCore: NSObject {
     TouchBarSettings.shared.addObserver(self, forKey: .PresentationModeFnModes)
     TouchBarSettings.shared.addObserver(self, forKey: .PresentationModeGlobal)
     TouchBarSettings.shared.addObserver(self, forKey: .PresentationModePerApp)
+
+    // luluk: 设置面板修改 AI provider/key 时清掉 service 缓存
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(_lulukAISubtitleConfigChanged(_:)),
+      name: .lulukAISubtitleConfigChanged,
+      object: nil
+    )
+  }
+
+  @objc private func _lulukAISubtitleConfigChanged(_ note: Notification) {
+    invalidateAISubtitleService()
   }
 
   // MARK: - Plugins

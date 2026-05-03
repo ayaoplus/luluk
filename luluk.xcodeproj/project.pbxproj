@@ -23,6 +23,9 @@
 		03E05BA32FA64860001DBEF4 /* TranslationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BA82FA64860001DBEF4 /* TranslationProvider.swift */; };
 		03E05BA42FA64860001DBEF4 /* DeepSeekProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BA92FA64860001DBEF4 /* DeepSeekProvider.swift */; };
 		03E05BAC2FA64860001DBEF4 /* SubtitleFileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E05BAB2FA64860001DBEF4 /* SubtitleFileWatcher.swift */; };
+		03A40004305C0000A0001001 /* AIKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A40004305C0000A0001000 /* AIKeychain.swift */; };
+		03A40004305C0000B0001001 /* PrefAISubtitleViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A40004305C0000B0001000 /* PrefAISubtitleViewController.swift */; };
+		03A40004305C0000C0001001 /* AISubtitleProgressViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A40004305C0000C0001000 /* AISubtitleProgressViewController.swift */; };
 		1326717E20852D0D000FA7E2 /* SubChooseViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 1326718020852D0D000FA7E2 /* SubChooseViewController.xib */; };
 		3412DB8E2C2FC64C00BBC142 /* Equalizations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3412DB8D2C2FC64800BBC142 /* Equalizations.swift */; };
 		348F71962DE2A819006C587D /* MPVCommandWrappers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348F71952DE2A814006C587D /* MPVCommandWrappers.swift */; };
@@ -656,6 +659,9 @@
 		03E05BA82FA64860001DBEF4 /* TranslationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationProvider.swift; sourceTree = "<group>"; };
 		03E05BA92FA64860001DBEF4 /* DeepSeekProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekProvider.swift; sourceTree = "<group>"; };
 		03E05BAB2FA64860001DBEF4 /* SubtitleFileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleFileWatcher.swift; sourceTree = "<group>"; };
+		03A40004305C0000A0001000 /* AIKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIKeychain.swift; sourceTree = "<group>"; };
+		03A40004305C0000B0001000 /* PrefAISubtitleViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrefAISubtitleViewController.swift; sourceTree = "<group>"; };
+		03A40004305C0000C0001000 /* AISubtitleProgressViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISubtitleProgressViewController.swift; sourceTree = "<group>"; };
 		0507C25E2B5617650043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainMenu.strings; sourceTree = "<group>"; };
 		0507C25F2B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/MainWindowController.strings; sourceTree = "<group>"; };
 		0507C2602B5617660043AD05 /* he */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = he; path = he.lproj/QuickSettingViewController.strings; sourceTree = "<group>"; };
@@ -2269,6 +2275,7 @@
 				03E05BA72FA64860001DBEF4 /* SubtitleError.swift */,
 				03E05BA82FA64860001DBEF4 /* TranslationProvider.swift */,
 				03E05BAB2FA64860001DBEF4 /* SubtitleFileWatcher.swift */,
+				03A40004305C0000A0001000 /* AIKeychain.swift */,
 				03E05BAA2FA64860001DBEF4 /* Providers */,
 			);
 			path = AISubtitle;
@@ -2351,6 +2358,8 @@
 				8400D5F21E1AB344006785F5 /* PrefCodecViewController.xib */,
 				8488D6E11E1183D300D5B952 /* PrefSubViewController.swift */,
 				8400D5F51E1AB348006785F5 /* PrefSubViewController.xib */,
+				03A40004305C0000B0001000 /* PrefAISubtitleViewController.swift */,
+				03A40004305C0000C0001000 /* AISubtitleProgressViewController.swift */,
 				8488D6E51E11ABE900D5B952 /* PrefNetworkViewController.swift */,
 				8400D5F81E1AB34D006785F5 /* PrefNetworkViewController.xib */,
 				E353070321496CE4008FE492 /* PrefPluginViewController.swift */,
@@ -3511,6 +3520,9 @@
 				03E05B942FA64860001DBEF4 /* WhisperProcessPool.swift in Sources */,
 				03E05B952FA64860001DBEF4 /* WhisperRunner.swift in Sources */,
 				03E05BA02FA64860001DBEF4 /* AISubtitleService.swift in Sources */,
+				03A40004305C0000A0001001 /* AIKeychain.swift in Sources */,
+				03A40004305C0000B0001001 /* PrefAISubtitleViewController.swift in Sources */,
+				03A40004305C0000C0001001 /* AISubtitleProgressViewController.swift in Sources */,
 				03E05BA12FA64860001DBEF4 /* PipelineProgress.swift in Sources */,
 				03E05BA22FA64860001DBEF4 /* SubtitleError.swift in Sources */,
 				03E05BA32FA64860001DBEF4 /* TranslationProvider.swift in Sources */,

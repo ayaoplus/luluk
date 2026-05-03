@@ -82,6 +82,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
       PrefUIViewController(),
       PrefCodecViewController(),
       PrefSubViewController(),
+      // luluk: AI 字幕设置面板（M4） - 紧跟原生字幕 tab 后面
+      PrefAISubtitleViewController(),
       PrefNetworkViewController(),
       PrefControlViewController(),
       PrefKeyBindingViewController(),
@@ -91,7 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     ]
 
     if IINA_ENABLE_PLUGIN_SYSTEM {
-      list.insert(PrefPluginViewController(), at: 8)
+      list.insert(PrefPluginViewController(), at: 9)
     }
     return PreferenceWindowController(viewControllers: list)
   }()
@@ -355,6 +357,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
   func applicationDidFinishLaunching(_ aNotification: Notification) {
     Logger.log("App launched")
+
+    // luluk: 一次性把旧 Preference 里的 DeepSeek key 搬到 Keychain（M4 起 key 只走 Keychain）
+    AIKeychain.migrateLegacyPreferenceKeysIfNeeded()
 
     if !isReady {
       getReady()

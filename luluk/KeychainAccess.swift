@@ -72,6 +72,21 @@ class KeychainAccess {
     }
   }
 
+  /// 删除 Keychain 中匹配该 service 的 generic password（不带 server/port）。
+  /// 用于 AI 字幕 provider key 清空场景。errSecItemNotFound 视为成功。
+  static func delete(forService serviceName: ServiceName, account: String? = nil) throws {
+    var query: [String: Any] = [
+      kSecAttrService as String: serviceName.rawValue,
+      kSecClass as String: kSecClassGenericPassword
+    ]
+    if let account = account { query[kSecAttrAccount as String] = account }
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      let message = (SecCopyErrorMessageString(status, nil) as String?) ?? ""
+      throw KeychainError.unhandledError(message: message)
+    }
+  }
+
   static func read(username: String?, forService serviceName: ServiceName, server: String? = nil, port: Int? = nil) throws -> (username: String, password: String) {
     var query: [String: Any] = [kSecAttrService as String: serviceName.rawValue,
                                 kSecMatchLimit as String: kSecMatchLimitOne,

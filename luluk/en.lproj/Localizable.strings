@@ -151,6 +151,7 @@
 "preference.ui" = "Interface";
 "preference.video_audio" = "Video & Audio";
 "preference.subtitle" = "Subtitle";
+"preference.ai_subtitle" = "AI Subtitle";
 "preference.network" = "Network";
 "preference.control" = "Control";
 "preference.keybindings" = "Key Bindings";
