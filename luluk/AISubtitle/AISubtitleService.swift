@@ -109,10 +109,20 @@ actor AISubtitleService: ProgressReporter {
         sourceLanguage: Language? = nil,
         targetLanguage: Language = .simplifiedChinese
     ) async {
-        // 先停掉旧的（切换视频时）
+        // 先停掉旧的（切换视频时）。await 旧 task 结束有 5s 超时——
+        // URLSession 网络层卡住时，cancellation 不一定能 propagate 到底层 TCP，
+        // 死等会让新视频永远启不起来（已观察到 ZRND 复现）。
         if let old = currentTask {
+            NSLog("%@", "[luluk-ai] start: cancelling previous task...")
             old.cancel()
-            await old.value
+            let cancelled = await Self.awaitWithTimeout(seconds: 5.0) {
+                _ = await old.value
+            }
+            if !cancelled {
+                NSLog("%@", "[luluk-ai] start: previous task did not finish within 5s, proceeding anyway (old will leak briefly)")
+            } else {
+                NSLog("%@", "[luluk-ai] start: previous task cancelled OK")
+            }
         }
         // 重置状态
         progress = .initial(provider: provider.displayName)
@@ -129,6 +139,27 @@ actor AISubtitleService: ProgressReporter {
             )
         }
         self.currentTask = task
+    }
+
+    /// race operation against a sleep；返回 true 表示 operation 在超时前完成。
+    /// 用于 start() 不让旧 task 死等阻塞新 pipeline。
+    private static func awaitWithTimeout(
+        seconds: Double,
+        operation: @escaping @Sendable () async -> Void
+    ) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                await operation()
+                return true
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                return false
+            }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
+        }
     }
 
     /// 取消当前流水线。fire-and-forget——cleanup 由 task 自己在 catch 路径完成。
@@ -390,6 +421,8 @@ actor AISubtitleService: ProgressReporter {
             let ctxStart = max(0, cursor - contextSize)
             let context = Array(cleaned[ctxStart..<cursor])
 
+            NSLog("%@", "[luluk-ai] translate batch [\(cursor)..<\(end)] (\(batch.count) lines, \(context.count) ctx)")
+            let tBatch = Date()
             do {
                 let chunk = try await provider.translate(
                     batch: batch,
@@ -397,8 +430,10 @@ actor AISubtitleService: ProgressReporter {
                     source: source,
                     target: target
                 )
+                NSLog("%@", "[luluk-ai] translate batch [\(cursor)..<\(end)] DONE in \(String(format: "%.2f", Date().timeIntervalSince(tBatch)))s")
                 translated.append(contentsOf: chunk)
             } catch {
+                NSLog("%@", "[luluk-ai] translate batch [\(cursor)..<\(end)] FAIL after \(String(format: "%.2f", Date().timeIntervalSince(tBatch)))s: \(error) — falling back to single-line")
                 // batch 整体失败 → 单行重译（SPEC §7.2）
                 for line in batch {
                     try Task.checkCancellation()

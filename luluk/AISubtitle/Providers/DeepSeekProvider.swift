@@ -131,6 +131,8 @@ actor DeepSeekProvider: TranslationProvider {
 
     /// POST JSON body 到 endpoint。返回 (data, statusCode)。
     /// 网络错误 → 抛 providerNetworkUnreachable。
+    /// 用显式 dataTask + withTaskCancellationHandler 让 Task.cancel 一定能停掉
+    /// 飞行中的 HTTP 请求（URLSession.data(for:) 在 TCP 卡住时不一定 propagate cancel）。
     private func postJSON(_ jsonBody: Data) async throws -> (Data, Int) {
         var req = URLRequest(url: endpoint, timeoutInterval: requestTimeout)
         req.httpMethod = "POST"
@@ -138,17 +140,75 @@ actor DeepSeekProvider: TranslationProvider {
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.httpBody = jsonBody
 
+        let bodyBytes = jsonBody.count
+        NSLog("%@", "[luluk-ai/deepseek] POST → \(endpoint.absoluteString) body=\(bodyBytes)B")
+        let t0 = Date()
+
         do {
-            let (data, response) = try await urlSession.data(for: req)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let (data, status) = try await performDataTask(req)
+            let elapsed = Date().timeIntervalSince(t0)
+            NSLog("%@", "[luluk-ai/deepseek] POST done in \(String(format: "%.2f", elapsed))s status=\(status) bytes=\(data.count)")
             return (data, status)
         } catch let urlErr as URLError {
-            // 网络层错误（断网、超时、DNS 解不出）统一归为不可达
+            let elapsed = Date().timeIntervalSince(t0)
+            NSLog("%@", "[luluk-ai/deepseek] POST FAIL after \(String(format: "%.2f", elapsed))s: URLError code=\(urlErr.code.rawValue) (\(urlErr.localizedDescription))")
             throw SubtitleError.providerNetworkUnreachable(
                 providerName: "DeepSeek (\(urlErr.code.rawValue))"
             )
+        } catch is CancellationError {
+            let elapsed = Date().timeIntervalSince(t0)
+            NSLog("%@", "[luluk-ai/deepseek] POST CANCELLED after \(String(format: "%.2f", elapsed))s")
+            throw CancellationError()
         } catch {
+            let elapsed = Date().timeIntervalSince(t0)
+            NSLog("%@", "[luluk-ai/deepseek] POST FAIL after \(String(format: "%.2f", elapsed))s: \(error)")
             throw SubtitleError.providerNetworkUnreachable(providerName: "DeepSeek")
+        }
+    }
+
+    /// 显式 dataTask + withTaskCancellationHandler，让 Task.cancel 一定能停掉
+    /// 飞行中的 HTTP 请求（URLSession.data(for:) 在 TCP 卡住时未必 propagate cancel）。
+    private func performDataTask(_ req: URLRequest) async throws -> (Data, Int) {
+        struct TaskHandle: @unchecked Sendable { let task: URLSessionDataTask }
+        let session = self.urlSession
+
+        // 在 continuation 外面声明 handle，让 onCancel 闭包能拿到。
+        // dataTask 由 closure 里创建并立刻 resume。
+        let holder = HandleHolder()
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<(Data, Int), Error>) in
+                let dataTask = session.dataTask(with: req) { data, response, error in
+                    if let error = error {
+                        cont.resume(throwing: error)
+                        return
+                    }
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    cont.resume(returning: (data ?? Data(), status))
+                }
+                holder.set(dataTask)
+                dataTask.resume()
+            }
+        } onCancel: {
+            holder.cancel()
+        }
+    }
+
+    /// 跨 actor 边界传 URLSessionDataTask 引用 + 调 cancel() 是安全的。
+    /// final class + lock 是为了 onCancel 可能在任何线程调，而 set 也可能并发。
+    private final class HandleHolder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var task: URLSessionDataTask?
+        private var cancelled = false
+        func set(_ t: URLSessionDataTask) {
+            lock.lock(); defer { lock.unlock() }
+            if cancelled { t.cancel(); return }
+            task = t
+        }
+        func cancel() {
+            lock.lock(); defer { lock.unlock() }
+            cancelled = true
+            task?.cancel()
         }
     }
 
