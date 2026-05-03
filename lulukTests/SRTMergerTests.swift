@@ -207,4 +207,48 @@ struct SRTMergerTests {
         let tmpFiles = contents.filter { $0.contains(".tmp.") }
         #expect(tmpFiles.isEmpty, "残留临时文件: \(tmpFiles)")
     }
+
+    // MARK: - 空段不写 0 字节文件（mpv 不接受 0-byte SRT，会报 Unsupported sub）
+
+    @Test func emptySegmentDoesNotCreateZeroByteFile() async throws {
+        let url = Self.makeTempURL()
+        defer { Self.cleanup(url) }
+        let merger = SRTMerger(outputURL: url)
+
+        // 视频开头无语音 → whisper 转写空 → Sanitize 剩 0 行 → append([]) 这种场景
+        try await merger.append(
+            lines: [],
+            segmentIndex: 0,
+            offsetInOriginalVideo: 0
+        )
+
+        // 关键断言：输出文件不应该被创建（即便段已经记下）
+        #expect(!FileManager.default.fileExists(atPath: url.path),
+                "空段不应该创建 0 字节 SRT 文件——mpv 会报 Unsupported sub")
+
+        // 段计数仍应记下
+        let indices = await merger.segmentIndices()
+        #expect(indices == [0])
+    }
+
+    @Test func fileAppearsOnFirstNonEmptyAppend() async throws {
+        let url = Self.makeTempURL()
+        defer { Self.cleanup(url) }
+        let merger = SRTMerger(outputURL: url)
+
+        // 前两段空（无语音）
+        try await merger.append(lines: [], segmentIndex: 0, offsetInOriginalVideo: 0)
+        try await merger.append(lines: [], segmentIndex: 1, offsetInOriginalVideo: 45)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+
+        // 第 3 段才有内容 → 文件这时才出现
+        try await merger.append(
+            lines: [SrtLine(index: 1, startTime: 0, endTime: 1, text: "你好")],
+            segmentIndex: 2,
+            offsetInOriginalVideo: 90
+        )
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        let content = try String(contentsOf: url, encoding: .utf8)
+        #expect(content.contains("你好"))
+    }
 }

@@ -109,8 +109,10 @@ actor SRTMerger {
     // MARK: - 内部：刷新到磁盘
 
     /// 收集所有段，按 segmentIndex 排序，重新分配连续 SRT 索引，写入临时文件，rename 到最终文件。
+    /// **空 output 跳过写文件**——所有已收到的段都没字幕（视频开头无语音 / whisper 全是幻觉被
+    /// Sanitizer 清掉），写 0 字节文件会让 mpv 报 "Unsupported sub" 并把后续 sub-reload 也阻断。
+    /// 等到第一个有内容的段再创建文件。
     private func flushToFile() throws {
-        // 按 segmentIndex 升序遍历，保证文件内时间单调递增
         let sortedKeys = segments.keys.sorted()
         var output = ""
         var globalIndex = 1
@@ -124,7 +126,12 @@ actor SRTMerger {
             }
         }
 
-        // 写临时文件
+        // 还没有任何字幕行就别写空文件（mpv 不接受 0-byte SRT）。
+        // segment 计数仍记下，只是物理文件晚点出现。
+        if output.isEmpty {
+            return
+        }
+
         let tempPath = tempURL.path
         do {
             try output.write(to: tempURL, atomically: false, encoding: .utf8)
@@ -132,20 +139,14 @@ actor SRTMerger {
             throw MergerError.writeFailed(underlying: "write \(tempPath): \(error.localizedDescription)")
         }
 
-        // 原子 rename 到最终路径（同卷）
         let fm = FileManager.default
         do {
-            // FileManager.replaceItemAt 在目标不存在时也工作（macOS 11+）
-            // 但更稳的是 _NSFileManagerReplaceItemOptions 兼容路径：
-            // 1) 目标不存在 → 直接 moveItem
-            // 2) 目标存在 → replaceItemAt
             if fm.fileExists(atPath: outputURL.path) {
                 _ = try fm.replaceItemAt(outputURL, withItemAt: tempURL)
             } else {
                 try fm.moveItem(at: tempURL, to: outputURL)
             }
         } catch {
-            // rename 失败时清理临时文件，避免磁盘垃圾
             try? fm.removeItem(at: tempURL)
             throw MergerError.writeFailed(underlying: "rename \(tempPath) → \(outputURL.path): \(error.localizedDescription)")
         }

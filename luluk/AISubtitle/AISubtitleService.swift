@@ -337,32 +337,40 @@ actor AISubtitleService: ProgressReporter {
         source: Language?,
         target: Language
     ) async throws {
+        let segIdx = segment.index
+        NSLog("%@", "[luluk-ai] processSegment #\(segIdx): pool.withSlot start")
         // 拿全局 whisper 进程槽（5），实际 spawn 进程
         let result = try await pool.withSlot {
             try await runner.transcribe(audio: segment, language: source)
         }
+        NSLog("%@", "[luluk-ai] processSegment #\(segIdx): transcribe done lines=\(result.lines.count) lang=\(result.language?.rawValue ?? "nil")")
         try Task.checkCancellation()
 
         let cleaned = Sanitizer.clean(result.lines)
+        NSLog("%@", "[luluk-ai] processSegment #\(segIdx): sanitized lines=\(cleaned.count)")
         incrementTranscribed()
 
         // 空段也 append（占位段索引，让 SRTMerger 知道 segment 完成）
         if cleaned.isEmpty {
+            NSLog("%@", "[luluk-ai] processSegment #\(segIdx): empty branch, calling merger.append")
             try await merger.append(
                 lines: [],
-                segmentIndex: segment.index,
+                segmentIndex: segIdx,
                 offsetInOriginalVideo: 0
             )
+            NSLog("%@", "[luluk-ai] processSegment #\(segIdx): merger.append returned, recording translated")
             recordTranslatedSegment()
             return
         }
 
         // 切 batch=8 + context=3，逐 batch 翻译
+        NSLog("%@", "[luluk-ai] processSegment #\(segIdx): translating \(cleaned.count) lines")
         let translated = try await translateAllBatches(
             cleaned: cleaned,
             source: source ?? result.language,
             target: target
         )
+        NSLog("%@", "[luluk-ai] processSegment #\(segIdx): translation done \(translated.count) lines")
 
         // 双语字幕：UI toggle 开 + 译文行数严格等于原文 → 拼成 "原文\n译文"。
         // 行数不等（极少数翻译失败/合并）就 fallback 单译文，宁可少不可错配。
@@ -374,11 +382,13 @@ actor AISubtitleService: ProgressReporter {
 
         // 注意：cleaned 里时间戳已经是绝对时间（WhisperRunner 加过 originalStartTime），
         // SRTMerger 的 offset 必须传 0，否则会重复偏移。
+        NSLog("%@", "[luluk-ai] processSegment #\(segIdx): calling merger.append (\(finalLines.count) final lines)")
         try await merger.append(
             lines: finalLines,
-            segmentIndex: segment.index,
+            segmentIndex: segIdx,
             offsetInOriginalVideo: 0
         )
+        NSLog("%@", "[luluk-ai] processSegment #\(segIdx): merger.append returned")
         recordTranslatedSegment()
     }
 
