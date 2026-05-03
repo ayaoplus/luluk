@@ -241,14 +241,15 @@ class PlayerCore: NSObject {
       Task { await old.cancel() }
     }
     let provider = Self.makeCurrentTranslationProvider()
-    let s = AISubtitleService(player: self, provider: provider)
+    let downloader = Self.makeCurrentModelDownloader()
+    let s = AISubtitleService(player: self, provider: provider, modelDownloader: downloader)
     _aiSubtitleService = s
     _aiSubtitleConfigSnapshot = snapshot
     NSLog("%@", "[luluk-ai] AISubtitleService (re)built for player=\(label ?? "?") snapshot=\(snapshot.hashValue)")
     return s
   }
 
-  /// 设置面板修改 provider/key 后会 invalidate 缓存——下次 getter 触发重建。
+  /// 设置面板修改 provider/key/模型 后会 invalidate 缓存——下次 getter 触发重建。
   func invalidateAISubtitleService() {
     if let old = _aiSubtitleService {
       Task { await old.cancel() }
@@ -259,12 +260,13 @@ class PlayerCore: NSObject {
 
   /// 把当前 Preference + Keychain 状态序列化成短字符串，作为 service 的"配置指纹"。
   /// hash 不变就复用 service；变了就重建。
+  /// 包含：provider 名 + DeepSeek key + Whisper 模型 raw value。
+  /// M5 加其它 provider 时同步把对应 key 拼进 snapshot。
   private static func currentAISubtitleConfigSnapshot() -> String {
     let providerName = Preference.string(for: .aiSubtitleProvider) ?? "deepseek"
-    // 目前所有可用的 provider 都是 DeepSeek，key 取它的就够了；
-    // M5 加其它 provider 时同步把对应 key 拼进 snapshot。
     let dsKey = AIKeychain.readKey(for: .deepseek) ?? ""
-    return "\(providerName)|\(dsKey.count)|\(dsKey.hashValue)"
+    let model = Preference.string(for: .aiSubtitleWhisperModel) ?? WhisperModel.largeV3Turbo.rawValue
+    return "\(providerName)|\(dsKey.count)|\(dsKey.hashValue)|\(model)"
   }
 
   /// 按当前 Preference + Keychain 实例化对应 provider。
@@ -280,6 +282,15 @@ class PlayerCore: NSObject {
       NSLog("%@", "[luluk-ai] provider=\(providerName) not implemented in M4, fallback to DeepSeek")
       return DeepSeekProvider(apiKey: dsKey)
     }
+  }
+
+  /// 按 Preference.aiSubtitleWhisperModel 实例化 ModelDownloader，
+  /// 让用户在 UI 里选的模型实际生效（之前 ModelDownloader() 永远默认 turbo 是 bug）。
+  /// Preference 里存的是 WhisperModel.rawValue；解析失败 fallback turbo。
+  private static func makeCurrentModelDownloader() -> ModelDownloader {
+    let raw = Preference.string(for: .aiSubtitleWhisperModel) ?? WhisperModel.largeV3Turbo.rawValue
+    let model = WhisperModel(rawValue: raw) ?? .largeV3Turbo
+    return ModelDownloader(model: model)
   }
 
   var syncUITimer: Timer?

@@ -36,16 +36,15 @@ class AISubtitleProgressViewController: NSViewController {
 
     private var subscriptionTask: Task<Void, Never>?
     private weak var observedPlayer: PlayerCore?
+    /// 监听 .lulukAISubtitleConfigChanged：配置变了 → PlayerCore 重建 service →
+    /// 这里要重新订阅新 service 的 progressStream，否则面板就挂在旧 stream 上不动了。
+    private var configChangeObserver: NSObjectProtocol?
 
     // MARK: - 调用入口
 
     /// 把面板 attach 到指定父 view 的右上角；同时订阅 player.aiSubtitleService.progressStream。
-    /// 多次 attach 同一个 player 是幂等的；切换 player 会先 detach 再订阅新的。
+    /// 父 view + player 都没变时只刷新订阅（不改视图层级）。切换 player 会先 detach 再订阅新的。
     func attach(to parent: NSView, player: PlayerCore) {
-        // 父 view 没变 + player 没变 → 幂等
-        if view.superview === parent && observedPlayer === player {
-            return
-        }
         if view.superview !== parent {
             if view.superview != nil {
                 view.removeFromSuperview()
@@ -57,19 +56,42 @@ class AISubtitleProgressViewController: NSViewController {
                 view.trailingAnchor.constraint(equalTo: parent.trailingAnchor, constant: -16),
                 view.widthAnchor.constraint(equalToConstant: 280)
             ])
+            view.isHidden = true
         }
-        view.isHidden = true
         observedPlayer = player
         startSubscription(for: player)
+        installConfigChangeListenerIfNeeded()
     }
 
     /// 从父 view 移除并取消订阅。MainWindowController.willClose 调。
     func detach() {
         subscriptionTask?.cancel()
         subscriptionTask = nil
+        if let obs = configChangeObserver {
+            NotificationCenter.default.removeObserver(obs)
+            configChangeObserver = nil
+        }
         observedPlayer = nil
         if view.superview != nil {
             view.removeFromSuperview()
+        }
+    }
+
+    /// 监听全局配置变更通知：一旦设置面板改了 provider/key/模型，PlayerCore 会
+    /// invalidate 然后重建 AISubtitleService。这里收到通知后 defer 一拍再
+    /// 取最新 service.progressStream 重订——defer 的目的是让 PlayerCore 的
+    /// observer（registered earlier in init）一定先跑完 invalidate。
+    private func installConfigChangeListenerIfNeeded() {
+        if configChangeObserver != nil { return }
+        configChangeObserver = NotificationCenter.default.addObserver(
+            forName: .lulukAISubtitleConfigChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self = self, let player = self.observedPlayer else { return }
+                self.startSubscription(for: player)
+            }
         }
     }
 

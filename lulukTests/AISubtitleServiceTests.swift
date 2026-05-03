@@ -244,4 +244,48 @@ struct AISubtitleServiceTests {
             }
         }
     }
+
+    // MARK: - 双语合成（codex finding #6 回归）
+
+    @Test func bilingualOffReturnsTranslatedAsIs() {
+        let orig = [
+            SrtLine(index: 1, startTime: 0, endTime: 1, text: "Hello"),
+            SrtLine(index: 2, startTime: 1, endTime: 2, text: "World"),
+        ]
+        let trans = [
+            SrtLine(index: 1, startTime: 0, endTime: 1, text: "你好"),
+            SrtLine(index: 2, startTime: 1, endTime: 2, text: "世界"),
+        ]
+        let result = AISubtitleService.composeLines(original: orig, translated: trans, bilingual: false)
+        #expect(result.map(\.text) == ["你好", "世界"])
+    }
+
+    @Test func bilingualOnMergesOriginalAboveTranslation() {
+        let orig = [
+            SrtLine(index: 1, startTime: 0, endTime: 1, text: "Hello"),
+            SrtLine(index: 2, startTime: 1, endTime: 2, text: "World"),
+        ]
+        let trans = [
+            SrtLine(index: 1, startTime: 0, endTime: 1, text: "你好"),
+            SrtLine(index: 2, startTime: 1, endTime: 2, text: "世界"),
+        ]
+        let result = AISubtitleService.composeLines(original: orig, translated: trans, bilingual: true)
+        #expect(result.map(\.text) == ["Hello\n你好", "World\n世界"])
+        // 时间戳要继承译文行（即原始行）的，不能错乱
+        #expect(result[0].startTime == 0)
+        #expect(result[1].endTime == 2)
+    }
+
+    @Test func bilingualMismatchedCountFallsBackToTranslated() {
+        // 翻译失败导致行数不等 → 不强行合成（避免错配），fallback 到纯译文
+        let orig = [
+            SrtLine(index: 1, startTime: 0, endTime: 1, text: "Hello"),
+            SrtLine(index: 2, startTime: 1, endTime: 2, text: "World"),
+        ]
+        let trans = [
+            SrtLine(index: 1, startTime: 0, endTime: 1, text: "你好世界"),
+        ]
+        let result = AISubtitleService.composeLines(original: orig, translated: trans, bilingual: true)
+        #expect(result.map(\.text) == ["你好世界"])
+    }
 }

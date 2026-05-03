@@ -50,7 +50,11 @@ actor AISubtitleService: ProgressReporter {
     /// M5 优化方向：whisper-cli 加 `-ng` 跑 CPU，或动态根据用户暂停状态调度。
     private let maxConcurrentSegments = 1
     private var inUseSlots = 0
-    private var slotWaiters: [CheckedContinuation<Void, Never>] = []
+    private struct SlotWaiter {
+        let id: UUID
+        let cont: CheckedContinuation<Void, Error>
+    }
+    private var slotWaiters: [SlotWaiter] = []
 
     // MARK: - 流水线运行时状态
 
@@ -238,8 +242,8 @@ actor AISubtitleService: ProgressReporter {
                 for try await segment in stream {
                     try Task.checkCancellation()
                     NSLog("%@", "[luluk-ai] segment #\(segment.index) yielded duration=\(String(format: "%.1f", segment.duration))s offset=\(String(format: "%.1f", segment.originalStartTime))s")
-                    // 拿 service-local 槽（≤3）
-                    await acquireSlot()
+                    // 拿 service-local 槽（≤3）；取消时 throws CancellationError
+                    try await acquireSlot()
                     incrementTotalSegments()
                     if progress.state != .running {
                         updateState(.running)
@@ -329,14 +333,42 @@ actor AISubtitleService: ProgressReporter {
             target: target
         )
 
+        // 双语字幕：UI toggle 开 + 译文行数严格等于原文 → 拼成 "原文\n译文"。
+        // 行数不等（极少数翻译失败/合并）就 fallback 单译文，宁可少不可错配。
+        let finalLines: [SrtLine] = Self.composeLines(
+            original: cleaned,
+            translated: translated,
+            bilingual: Preference.bool(for: .aiSubtitleBilingual)
+        )
+
         // 注意：cleaned 里时间戳已经是绝对时间（WhisperRunner 加过 originalStartTime），
         // SRTMerger 的 offset 必须传 0，否则会重复偏移。
         try await merger.append(
-            lines: translated,
+            lines: finalLines,
             segmentIndex: segment.index,
             offsetInOriginalVideo: 0
         )
         recordTranslatedSegment()
+    }
+
+    /// 双语合成：bilingual=true 且行数对得上 → "原文\n译文"；否则原样返回 translated。
+    /// 暴露 internal 给单元测试 @testable import 调。
+    static func composeLines(
+        original: [SrtLine],
+        translated: [SrtLine],
+        bilingual: Bool
+    ) -> [SrtLine] {
+        guard bilingual, original.count == translated.count else {
+            return translated
+        }
+        return zip(original, translated).map { (orig, trans) in
+            SrtLine(
+                index: trans.index,
+                startTime: trans.startTime,
+                endTime: trans.endTime,
+                text: orig.text + "\n" + trans.text
+            )
+        }
     }
 
     /// 把整段切成多个 batch，逐个调 provider；batch 失败 → 单行重试 → 再失败 → 占位。
@@ -448,22 +480,36 @@ actor AISubtitleService: ProgressReporter {
         progressContinuation.yield(progress)
     }
 
-    // MARK: - 段级 semaphore
+    // MARK: - 段级 semaphore（cancellation-aware）
 
-    private func acquireSlot() async {
+    /// 申请一个段并发槽。Task 取消时把 waiter 从队列里移走 + 抛 CancellationError，
+    /// 避免裸 continuation 在 cancel 路径上泄漏（codex finding #5）。
+    private func acquireSlot() async throws {
+        try Task.checkCancellation()
         if inUseSlots < maxConcurrentSegments {
             inUseSlots += 1
             return
         }
-        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-            slotWaiters.append(c)
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+                slotWaiters.append(SlotWaiter(id: id, cont: c))
+            }
+        } onCancel: {
+            Task { await self.cancelSlotWaiter(id: id) }
         }
+    }
+
+    private func cancelSlotWaiter(id: UUID) {
+        guard let idx = slotWaiters.firstIndex(where: { $0.id == id }) else { return }
+        let w = slotWaiters.remove(at: idx)
+        w.cont.resume(throwing: CancellationError())
     }
 
     private func releaseSlot() {
         if let next = slotWaiters.first {
             slotWaiters.removeFirst()
-            next.resume()
+            next.cont.resume()
         } else {
             inUseSlots = max(0, inUseSlots - 1)
         }

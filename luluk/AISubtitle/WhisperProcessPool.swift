@@ -30,7 +30,12 @@ actor WhisperProcessPool {
     private var inUse: Int = 0
 
     /// FIFO 等待队列。第 limit+1 个 acquire 起塞这里。
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    /// 用 (UUID, continuation) 对方便取消时 O(N) 定位移除。
+    private struct Waiter {
+        let id: UUID
+        let cont: CheckedContinuation<Void, Error>
+    }
+    private var waiters: [Waiter] = []
 
     init(limit: Int) {
         precondition(limit > 0, "WhisperProcessPool limit must be > 0")
@@ -47,33 +52,48 @@ actor WhisperProcessPool {
 
     // MARK: - 公开 API
 
-    /// 申请一个槽。槽满则挂起，直到有人 release。
+    /// 申请一个槽。槽满则挂起，直到有人 release。Task 取消时会从等待队列移除并抛 CancellationError。
     /// - Important: 必须有对应的 ``release()`` 调用，否则槽永久占用。
     ///              推荐用 ``withSlot(_:)`` 自动配对。
-    func acquire() async {
+    func acquire() async throws {
+        try Task.checkCancellation()
         if inUse < limit {
             inUse += 1
             return
         }
-        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-            waiters.append(c)
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+                waiters.append(Waiter(id: id, cont: c))
+            }
+        } onCancel: {
+            // onCancel 是 nonisolated 同步闭包，不能直接动 actor 状态——派 Task 进 actor 处理
+            Task { await self.cancelWaiter(id: id) }
         }
-        // resume 的时候 release 已经把槽"转交"给我们，inUse 保持不变
+        // 正常 resume 路径：release 已经把槽"转交"给我们，inUse 保持不变
+    }
+
+    /// 取消队列中匹配 id 的等待者。如果在被取消前刚好被 release 唤醒了，这里就找不到，no-op。
+    private func cancelWaiter(id: UUID) {
+        guard let idx = waiters.firstIndex(where: { $0.id == id }) else { return }
+        let w = waiters.remove(at: idx)
+        w.cont.resume(throwing: CancellationError())
     }
 
     /// 释放一个槽。如果有等待者，直接交给队首；否则 inUse 减 1。
     func release() {
         if let next = waiters.first {
             waiters.removeFirst()
-            next.resume()
+            next.cont.resume()
         } else {
             inUse = max(0, inUse - 1)
         }
     }
 
     /// 自动配对 acquire/release 的高阶方法。推荐调用方用这个。
+    /// acquire 取消时不会 release（因为压根没拿到槽）。
     func withSlot<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
-        await acquire()
+        try await acquire()
         do {
             let result = try await body()
             release()

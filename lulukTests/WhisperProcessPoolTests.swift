@@ -14,32 +14,32 @@ import Foundation
 
 struct WhisperProcessPoolTests {
 
-    @Test func acquireWithinLimitDoesNotBlock() async {
+    @Test func acquireWithinLimitDoesNotBlock() async throws {
         let pool = WhisperProcessPool(limit: 3)
-        await pool.acquire()
-        await pool.acquire()
-        await pool.acquire()
+        try await pool.acquire()
+        try await pool.acquire()
+        try await pool.acquire()
         let inUse = await pool.currentInUse
         #expect(inUse == 3)
         let waiting = await pool.waitingCount
         #expect(waiting == 0)
     }
 
-    @Test func releaseDecrementsWhenNoWaiters() async {
+    @Test func releaseDecrementsWhenNoWaiters() async throws {
         let pool = WhisperProcessPool(limit: 2)
-        await pool.acquire()
-        await pool.acquire()
+        try await pool.acquire()
+        try await pool.acquire()
         await pool.release()
         let inUse = await pool.currentInUse
         #expect(inUse == 1)
     }
 
-    @Test func waitersGetSlotWhenReleased() async {
+    @Test func waitersGetSlotWhenReleased() async throws {
         let pool = WhisperProcessPool(limit: 1)
-        await pool.acquire()  // 把唯一的槽占了
+        try await pool.acquire()  // 把唯一的槽占了
 
         // 起一个 task 排队，应该挂起
-        let waitTask = Task { await pool.acquire() }
+        let waitTask = Task { try await pool.acquire() }
 
         // 让出几次让 acquire 真正进入 waiters
         for _ in 0..<5 { await Task.yield() }
@@ -48,13 +48,45 @@ struct WhisperProcessPoolTests {
 
         // release → 槽转交给 waitTask
         await pool.release()
-        _ = await waitTask.value
+        _ = try await waitTask.value
 
         let stillWaiting = await pool.waitingCount
         #expect(stillWaiting == 0)
         // inUse 不变（槽转交，没有真正"释放再分配"）
         let inUse = await pool.currentInUse
         #expect(inUse == 1)
+    }
+
+    /// 排队时 task 取消应该把 waiter 从队列里移除并抛 CancellationError，
+    /// 同时不影响其它正常 acquire 流程。回归 codex finding #5。
+    @Test func cancelledWaiterIsRemovedAndDoesNotLeak() async throws {
+        let pool = WhisperProcessPool(limit: 1)
+        try await pool.acquire()  // 占满
+
+        // task A 进队列
+        let cancelTask = Task { try await pool.acquire() }
+        for _ in 0..<5 { await Task.yield() }
+        #expect(await pool.waitingCount == 1)
+
+        // 取消 → 队列应清空
+        cancelTask.cancel()
+        do {
+            try await cancelTask.value
+            Issue.record("cancelled task should have thrown")
+        } catch is CancellationError {
+            // expected
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+        for _ in 0..<5 { await Task.yield() }
+        #expect(await pool.waitingCount == 0)
+
+        // 后续正常 acquire 仍然行得通
+        let nextTask = Task { try await pool.acquire() }
+        for _ in 0..<5 { await Task.yield() }
+        await pool.release()
+        _ = try await nextTask.value
+        #expect(await pool.currentInUse == 1)
     }
 
     @Test func withSlotReleasesOnSuccess() async throws {

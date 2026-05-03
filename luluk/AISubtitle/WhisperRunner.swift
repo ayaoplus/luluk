@@ -82,7 +82,11 @@ actor WhisperRunner {
         try? FileManager.default.removeItem(at: jsonURL)
 
         let args = buildArguments(audio: audio, language: language, outputPrefix: prefix)
-        try runWhisperCLI(arguments: args)
+        try await runWhisperCLI(arguments: args)
+
+        // runWhisperCLI 取消路径上不抛 CancellationError（throws processFailed），
+        // 这里再 check 一次把它翻译成上层期待的 CancellationError。
+        try Task.checkCancellation()
 
         guard FileManager.default.fileExists(atPath: jsonURL.path) else {
             throw WhisperRunnerError.outputMissing(path: jsonURL.path)
@@ -144,7 +148,10 @@ actor WhisperRunner {
         return args
     }
 
-    private func runWhisperCLI(arguments: [String]) throws {
+    /// spawn whisper-cli + 同步等结束。Task 取消时会主动 SIGTERM 子进程
+    /// （waitUntilExit 没有 cancellation 钩子，必须从外部 terminate 才能解阻塞）。
+    /// codex finding #4：之前是 fire-and-forget cancel，子进程会跑到天荒地老。
+    private func runWhisperCLI(arguments: [String]) async throws {
         let process = Process()
         process.executableURL = binaryURL
         process.arguments = arguments
@@ -156,19 +163,34 @@ actor WhisperRunner {
         process.standardError = stderrPipe
 
         try process.run()
-        // 大块输出可能导致 pipe 满阻塞——whisper-cli `--no-prints` 已把输出降到很少，
-        // 但 stderr 仍有 ggml 加载日志。先读完再 wait 是安全的。
-        let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-        _ = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+        let handle = ProcessHandle(process: process)
 
-        if process.terminationStatus != 0 {
-            let stderr = String(data: errData, encoding: .utf8) ?? ""
-            throw WhisperRunnerError.processFailed(
-                exitCode: process.terminationStatus,
-                stderr: stderr
-            )
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                // 同步阻塞 wait 放到 background queue，避免堵 actor / cooperative pool
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                    _ = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                    process.waitUntilExit()
+                    if process.terminationStatus != 0 {
+                        let stderr = String(data: errData, encoding: .utf8) ?? ""
+                        cont.resume(throwing: WhisperRunnerError.processFailed(
+                            exitCode: process.terminationStatus, stderr: stderr))
+                    } else {
+                        cont.resume()
+                    }
+                }
+            }
+        } onCancel: {
+            // SIGTERM 通常足够；whisper-cli 没装信号 trap 也会被默认行为退出
+            handle.process.terminate()
         }
+    }
+
+    /// Process 不是 Sendable，但跨 actor 边界传引用对 terminate() 是安全的。
+    /// 用 @unchecked Sendable 包一层避免编译器警告。
+    private struct ProcessHandle: @unchecked Sendable {
+        let process: Process
     }
 
     // MARK: - JSON 解析

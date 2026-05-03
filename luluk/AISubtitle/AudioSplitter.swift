@@ -120,7 +120,7 @@ actor AudioSplitter {
 
         NSLog("%@", "[luluk-ai/splitter] probeDuration starting")
         let t0 = Date()
-        let duration = try probeDuration(videoURL: videoURL)
+        let duration = try await probeDuration(videoURL: videoURL)
         NSLog("%@", "[luluk-ai/splitter] probeDuration DONE: \(String(format: "%.1f", duration))s in \(String(format: "%.2f", Date().timeIntervalSince(t0)))s")
 
         // M3 默认跳过 silencedetect（长视频扫全片要数分钟，跟首字幕 11s 承诺冲突）。
@@ -128,7 +128,7 @@ actor AudioSplitter {
         if useSilenceDetection {
             NSLog("%@", "[luluk-ai/splitter] detectSilences starting (scans whole file)")
             let t1 = Date()
-            silences = try detectSilences(videoURL: videoURL)
+            silences = try await detectSilences(videoURL: videoURL)
             NSLog("%@", "[luluk-ai/splitter] detectSilences DONE: \(silences.count) silences in \(String(format: "%.2f", Date().timeIntervalSince(t1)))s")
         } else {
             NSLog("%@", "[luluk-ai/splitter] silencedetect skipped (hard-cut every \(Int(targetSegmentDuration))s)")
@@ -160,7 +160,7 @@ actor AudioSplitter {
             let wavURL = outputDir.appendingPathComponent(String(format: "seg_%05d.wav", index))
             let tExt = Date()
             NSLog("%@", "[luluk-ai/splitter] extract seg #\(index) [\(String(format: "%.1f", segStart))s, +\(String(format: "%.1f", segDuration))s]")
-            try extractSegment(
+            try await extractSegment(
                 videoURL: videoURL,
                 start: segStart,
                 duration: segDuration,
@@ -183,8 +183,8 @@ actor AudioSplitter {
     // MARK: - ffprobe / ffmpeg 调用
 
     /// `ffprobe -v error -show_entries format=duration -of csv=p=0 <video>` → 秒数。
-    private func probeDuration(videoURL: URL) throws -> TimeInterval {
-        let result = try runProcess(
+    private func probeDuration(videoURL: URL) async throws -> TimeInterval {
+        let result = try await runProcess(
             executable: ffprobePath,
             arguments: [
                 "-v", "error",
@@ -202,11 +202,11 @@ actor AudioSplitter {
 
     /// `ffmpeg -i <video> -af silencedetect=noise=-30dB:d=0.5 -f null -` → 解析 stderr。
     /// stderr 里每对静音段会出现两行：`silence_start: X` + `silence_end: Y | silence_duration: Z`。
-    func detectSilences(videoURL: URL) throws -> [(start: TimeInterval, end: TimeInterval)] {
+    func detectSilences(videoURL: URL) async throws -> [(start: TimeInterval, end: TimeInterval)] {
         let noiseArg = String(format: "silencedetect=noise=%.0fdB:d=%.1f",
                               AudioSplitter.silenceNoiseDb,
                               AudioSplitter.silenceMinDuration)
-        let result = try runProcess(
+        let result = try await runProcess(
             executable: ffmpegPath,
             arguments: [
                 "-hide_banner",
@@ -229,8 +229,8 @@ actor AudioSplitter {
         start: TimeInterval,
         duration: TimeInterval,
         outputWAV: URL
-    ) throws {
-        _ = try runProcess(
+    ) async throws {
+        _ = try await runProcess(
             executable: ffmpegPath,
             arguments: [
                 "-hide_banner",
@@ -327,14 +327,14 @@ actor AudioSplitter {
         let stderr: String
     }
 
-    /// 通用 spawn + wait + 收集 stdout/stderr。
-    /// allowNonZeroExit=false 时非 0 退出会 throw。
+    /// 通用 spawn + wait + 收集 stdout/stderr。Task 取消时主动 SIGTERM 子进程
+    /// （waitUntilExit 没有 cancellation 钩子）。codex finding #4。
     @discardableResult
     private func runProcess(
         executable: String,
         arguments: [String],
         allowNonZeroExit: Bool = false
-    ) throws -> ProcessResult {
+    ) async throws -> ProcessResult {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
@@ -345,24 +345,41 @@ actor AudioSplitter {
         process.standardError = stderrPipe
 
         try process.run()
-        // 注意：必须先 read 再 waitUntilExit，否则大 pipe 会塞满阻塞子进程。
-        // ffmpeg 输出有限，先 readToEnd 再 wait 是安全的。
-        let outData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+        let handle = ProcessHandle(process: process)
 
-        let stdoutStr = String(data: outData, encoding: .utf8) ?? ""
-        let stderrStr = String(data: errData, encoding: .utf8) ?? ""
-        let code = process.terminationStatus
+        let result: ProcessResult = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<ProcessResult, Error>) in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    // 必须先 read 再 wait，否则大 pipe 会塞满阻塞子进程。
+                    let outData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                    let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                    process.waitUntilExit()
+                    let stdoutStr = String(data: outData, encoding: .utf8) ?? ""
+                    let stderrStr = String(data: errData, encoding: .utf8) ?? ""
+                    let code = process.terminationStatus
+                    cont.resume(returning: ProcessResult(exitCode: code, stdout: stdoutStr, stderr: stderrStr))
+                }
+            }
+        } onCancel: {
+            handle.process.terminate()
+        }
 
-        if code != 0 && !allowNonZeroExit {
+        // cancel 路径上 terminate 后 process 也会 exit 非 0；这里把它统一翻译成 CancellationError。
+        try Task.checkCancellation()
+
+        if result.exitCode != 0 && !allowNonZeroExit {
             throw AudioSplitterError.processFailed(
                 command: ([executable] + arguments).joined(separator: " "),
-                exitCode: code,
-                stderr: stderrStr
+                exitCode: result.exitCode,
+                stderr: result.stderr
             )
         }
-        return ProcessResult(exitCode: code, stdout: stdoutStr, stderr: stderrStr)
+        return result
+    }
+
+    /// 同 WhisperRunner.ProcessHandle：跨 actor 边界传 Process 引用 + 调 terminate() 是安全的。
+    private struct ProcessHandle: @unchecked Sendable {
+        let process: Process
     }
 
     // MARK: - 定位 ffmpeg/ffprobe

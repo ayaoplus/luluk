@@ -575,17 +575,17 @@ let viewControllers = [
   ──────────────────────
   
   翻译服务：
-    ○ luluk Cloud（推荐 · 开箱即用）
+    ○ luluk Cloud（推荐 · 开箱即用） ── ⏳ M5 上线
         [登录/注册]  套餐: ¥9.9/月起 [选择套餐]
-    
-    ○ 我有 API Key（DIY）
-        □ DeepSeek      sk-_______________
-        □ MiniMax       _________________
-        □ OpenAI        sk-_______________
-        □ 自定义 Endpoint  https://_______
-        
-    ○ 本地翻译（免费 · 无需联网）
-        NLLB-200-distilled-600M（已下载 600MB）
+
+    ○ 我有 API Key（DIY） ── V1 唯一可用档位
+        □ DeepSeek      sk-_______________   ← V1 已上
+        □ MiniMax       _________________   ← M5
+        □ OpenAI        sk-_______________   ← M5
+        □ 自定义 Endpoint  https://_______   ← M5
+
+    ○ 本地翻译（免费 · 无需联网） ── ⏳ M5 上线
+        NLLB-200-distilled-600M（M5 起一键下载 600MB）
   
   ──────────────────────
   

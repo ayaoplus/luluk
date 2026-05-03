@@ -53,10 +53,13 @@ class KeychainAccess {
     } else {
 
       // try to write the password
+      // SecItemAdd 期望 kSecValueData 是 CFData/Data；之前传 String 走的是隐式桥接，
+      // 偶发可能在沙盒/某些 macOS 版本上失败。这里跟 update path 保持一致传 Data。
+      let passwordData = password.data(using: String.Encoding.utf8)!
       var query: [String: Any] = [kSecAttrService as String: serviceName.rawValue,
                                   kSecAttrLabel as String: serviceName.rawValue,
                                   kSecAttrAccount as String: username,
-                                  kSecValueData as String: password]
+                                  kSecValueData as String: passwordData]
       if let server = server { query[kSecAttrServer as String] = server }
       if let port = port { query[kSecAttrPort as String] = port }
       query[kSecClass as String] = server == nil && port == nil ? kSecClassGenericPassword : kSecClassInternetPassword
