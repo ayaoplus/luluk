@@ -263,11 +263,11 @@ open luluk.xcodeproj
 
 | 里程碑 | 内容 | 工时 | 状态 |
 |--------|------|------|------|
-| **M1** | 纯算法：Sanitizer + SRTMerger + SrtLine + Language + ~50 单元测试 | 1-2 天 | ✅ 已完成（commit `6dbdacd`+ `303ec61`+ `2fd5245`+ `7765693`）|
-| **M2** | 进程框架：AudioSplitter + WhisperRunner + WhisperProcessPool + ModelDownloader | 3-5 天 | ⏳ 待启动 |
-| **M3** | 单 provider 端到端：DeepSeekProvider + AISubtitleService 流水线 + IINA hook | 5-7 天 | ⏳ |
-| **M4** | UI：PrefAISubtitleViewController + 进度面板 + Keychain | 4-6 天 | ✅ 已完成 |
-| **M5** | watch + 全 provider：SubtitleFileWatcher + MiniMax/OpenAI/Custom/LulukCloud/NLLBLocal | 6-8 天 | ⏳ |
+| **M1** | 纯算法：Sanitizer + SRTMerger + SrtLine + Language | 1-2 天 | ✅ 已完成（commit `6dbdacd`+ `303ec61`+ `2fd5245`+ `7765693`）|
+| **M2** | 进程框架：AudioSplitter + WhisperRunner + WhisperProcessPool + ModelDownloader | 3-5 天 | ✅ 已完成（commit `80c1f2d`）|
+| **M3** | 单 provider 端到端：DeepSeekProvider + AISubtitleService 流水线 + IINA hook + SubtitleFileWatcher（mtime 轮询） | 5-7 天 | ✅ 已完成（commit `70984bc` → `8b7d00b`，含若干诊断/修复 hotfix）|
+| **M4** | UI：PrefAISubtitleViewController（程序化）+ 进度面板 + Keychain + hotfix1-7 | 4-6 天 | ✅ 已完成（commit `1fee244` → `2ecbe37`）|
+| **M5** | FSEventStream 优化（可选）+ 全 provider：MiniMax/OpenAI/Custom/LulukCloud/NLLBLocal + ModelDownloader 真实下载 | 6-8 天 | ⏳ 待启动 |
 
 每个 M 的具体新建文件、测试用例、IINA 集成 patch 点见 `AI_SUBTITLE_DESIGN.md §4`。
 
@@ -349,11 +349,13 @@ xcrun notarytool submit luluk.app.zip \
 - [x] `open luluk.xcodeproj` + ⌘+B + ⌘+R 跑通
 - [x] 验证清单全绿（图标 / 应用名 / About / Sparkle 不弹）
 
-### 阶段 4：AI 字幕模块开发（🔄 M1-M4 完成，M5 待启动）
-- [x] **M1**：Sanitizer + SRTMerger + SrtLine + Language + ~50 单元测试
-- [x] **M2**：AudioSplitter + WhisperRunner + WhisperProcessPool + ModelDownloader（83 单元测试通过；ensureWhisperReady 走应用支持目录 + PATH fallback；下载逻辑 stub 留 M5）
-- [x] **M3**：DeepSeekProvider + AISubtitleService + IINA hook + SubtitleFileWatcher（105 单元测试通过；PlayerCore.openMainWindow 末尾 hook + stop() cancel；Preference 9 个 AI key 含临时 aiSubtitleDeepSeekKey；M4 上 UI 前用 `defaults write xyz.luluk.app aiSubtitleDeepSeekKey "sk-..."` 设 key；watcher 用 mtime 轮询替 FSEventStream 简化实现）
-- [x] **M4**：AIKeychain + PrefAISubtitleViewController（程序化 UI · 4 sections）+ AISubtitleProgressViewController（OSD 风格右上角面板）+ Preference→Keychain 一次性 migration + PlayerCore aiSubtitleService 按 config 快照按需重建。无 xib，全程程序化构造；Notification `lulukAISubtitleConfigChanged` 串联设置变更 → service 失效。M5 之前 provider 选择列表只 enable DeepSeek。105 既有单元测试仍全绿。
+### 阶段 4：AI 字幕模块开发（🔄 M1-M4 完成 + 端到端跑通，M5 待启动）
+- [x] **M1**：Sanitizer + SRTMerger + SrtLine + Language（M1 阶段约 56 测试；当前累计 117）
+- [x] **M2**：AudioSplitter + WhisperRunner + WhisperProcessPool + ModelDownloader（ensureWhisperReady 走应用支持目录 + PATH fallback；下载逻辑 stub 留 M5）
+- [x] **M3**：DeepSeekProvider + AISubtitleService + IINA hook + SubtitleFileWatcher（PlayerCore.openMainWindow 末尾 hook + stop() cancel；Preference 9 个 AI key 含临时 aiSubtitleDeepSeekKey；M4 上 UI 前用 `defaults write xyz.luluk.app aiSubtitleDeepSeekKey "sk-..."` 设 key；watcher 用 500ms mtime 轮询替 FSEventStream，调 `loadExternalSubFile` 兼顾首次 sub-add + 后续 sub-reload；段级并发 3 → 1 缓解 mpv GPU 抢占破音）
+- [x] **M4**：AIKeychain + PrefAISubtitleViewController（程序化 UI · 4 sections · 无 xib）+ AISubtitleProgressViewController（OSD 风格右上角面板）+ Preference→Keychain 一次性 migration + PlayerCore aiSubtitleService 按 config 快照按需重建 + Notification `.lulukAISubtitleConfigChanged` 串联设置变更 → service 失效。M5 之前 provider 选择列表只 enable DeepSeek。
+- [x] **M4 hotfix1-7**（commit `1fee244` → `2ecbe37`）：UI 控件叠层 / autoresize / Key textfield 三层保险（Enter+blur+save 按钮）/ 流水线诊断日志 / start() 取消 5s 超时 / URLSession 强制 cancel / WhisperRunner+AudioSplitter 改并发读 stdout+stderr 修死锁 / 不写 0 字节 SRT / 弃用 `Process.waitUntilExit` 改用 `terminationHandler` 拿 exit code。**端到端已稳定可用**。
+- [x] **测试规模**：累计 **117 单元测试**全绿（M1: 56 · M2: 31 · M3: 24 · M4: 6）
 - [ ] **M5**：全 provider + NLLB Python helper + ModelDownloader 真实下载逻辑（FSEventStream 优化可选）
 
 ### 阶段 5：发布（⏳ V1 上线前）
